@@ -33,9 +33,9 @@ constexpr Roles roles_by_theme[] = {
 };
 Roles role;
 
-constexpr uint8_t type_colors[] = { ui::badge_0, ui::badge_0 + 3, ui::badge_0 + 1 };
+constexpr uint8_t type_colors[] = { ui::badge_0, ui::badge_0 + 3, ui::badge_0 + 1, ui::badge_0 + 5 }; // blue, orange, purple, green
 constexpr uint8_t coin_colors[] = { ui::badge_0 + 3, ui::badge_0 + 1, ui::badge_0 + 7, ui::badge_0 + 2, ui::ink };
-constexpr const char* card_names[] = { "Cold wallet", "Hot wallet", "Exchange" };
+constexpr const char* card_names[] = { "Cold wallet", "Hot wallet", "Exchange", "External" };
 
 // ---- Primitives ----
 void text(const char* s, int x, int y, uint8_t color, int max_width = 240, font f = font::body)
@@ -559,7 +559,7 @@ void separator(int x, int y, int w, Row above, Row below)
 // chip: Net Link draws the type as the chip's strip (row()), so nothing is drawn here.
 int type_mark(WalletType type, int x, int y, int h, uint8_t color, bool /* big */ = false, bool chip = false)
 {
-    char letter[2] = { "CHE"[int(type)], 0 };
+    char letter[2] = { "CHEX"[int(type)], 0 }; // eXternal: E is Exchange
     switch (theme)
     {
     case Theme::field:
@@ -981,7 +981,7 @@ void home(const Controller& app, bool right_active)
     int count = app.visible_count();
     if (!count)
     {
-        const char* empty[] = { "No wallets yet", "No cold wallets", "No hot wallets", "No exchanges" };
+        const char* empty[] = { "No wallets yet", "No cold wallets", "No hot wallets", "No exchanges", "No external" };
         text(empty[app.book.filter], left_x + 6, 66, role.dim, left_w - 12);
         text("STA to add", left_x + 6, 83, role.dim, left_w - 12);
     }
@@ -1260,10 +1260,13 @@ void setup(const Controller& app)
     footer(hints, 3, app.message);
 }
 // Type card (06), 232x31 at y.
+// Type card (06), 232x24 at y: name at y+3, description at y+13. Four cards on a 26 px pitch fill
+// y 40-141 (the handoff's three 31 px cards had no room for External).
+constexpr int card_h = 24;
 void type_card(int i, int y, bool selected)
 {
-    constexpr const char* descriptions[]
-        = { "Hardware or paper / offline", "Phone or browser app", "Exchange deposit address" };
+    constexpr const char* descriptions[] = { "Hardware or paper / offline", "Phone or browser app",
+        "Exchange deposit address", "Someone else's wallet" };
     WalletType type = WalletType(i);
     uint8_t name_c = 0, desc_c = 0;
     int x = 0;
@@ -1271,15 +1274,15 @@ void type_card(int i, int y, bool selected)
     {
     case Theme::field:
         // Type strip on the card's left edge, inside the frame; the cursor sits right of it.
-        panel(4, y, 232, 31);
+        panel(4, y, 232, card_h);
         if (selected)
         {
-            ui::round_fill(6, y + 2, 228, 27, 2, ui::selection);
-            outline(6, y + 2, 228, 27, ui::selection_edge);
+            ui::round_fill(6, y + 2, 228, card_h - 4, 2, ui::selection);
+            outline(6, y + 2, 228, card_h - 4, ui::selection_edge);
         }
-        ui::fill(6, y + 2, 3, 27, type_colors[i]);
+        ui::fill(6, y + 2, 3, card_h - 4, type_colors[i]);
         if (selected)
-            ui::cursor_right(11, y + 11, ui::red);
+            ui::cursor_right(11, y + (card_h - 8) / 2, ui::red);
         name_c = ui::ink;
         desc_c = selected ? ui::ink : ui::secondary;
         x = 19;
@@ -1290,43 +1293,43 @@ void type_card(int i, int y, bool selected)
         int cx = selected ? 10 : 4, cw = selected ? 226 : 232;
         if (selected)
         {
-            ui::round_fill(cx, y, cw, 31, 2, ui::net_green);
-            ui::fill(cx + 2, y + 2, cw - 4, 27, ui::net_selected);
-            ui::cursor_right(4, y + 11, ui::net_green);
+            ui::round_fill(cx, y, cw, card_h, 2, ui::net_green);
+            ui::fill(cx + 2, y + 2, cw - 4, card_h - 4, ui::net_selected);
+            ui::cursor_right(4, y + (card_h - 8) / 2, ui::net_green);
         }
         else
         {
-            ui::round_fill(cx, y, cw, 31, 2, ui::net_chip);
+            ui::round_fill(cx, y, cw, card_h, 2, ui::net_chip);
             line(cx + 2, y, cw - 4, ui::net_chip_hi);
         }
-        ui::fill(cx, y + 1, 5, 29, type_colors[i]);
-        ui::fill(cx + 1, y, 4, 31, type_colors[i]);
+        ui::fill(cx, y + 1, 5, card_h - 2, type_colors[i]);
+        ui::fill(cx + 1, y, 4, card_h, type_colors[i]);
         name_c = ui::net_text;
         desc_c = selected ? ui::net_shine : ui::net_secondary;
         x = cx + 14;
         break;
     }
     case Theme::lcd:
-        ui::round_fill(4, y, 232, 31, 2, ui::lcd_dark);
+        ui::round_fill(4, y, 232, card_h, 2, ui::lcd_dark);
         if (!selected)
-            ui::fill(6, y + 2, 228, 27, ui::lcd_screen);
+            ui::fill(6, y + 2, 228, card_h - 4, ui::lcd_screen);
         name_c = selected ? ui::lcd_screen : ui::lcd_dark;
         desc_c = selected ? ui::lcd_light : ui::lcd_mid;
-        x = type_mark(type, 14, y + 3, 15, name_c);
+        x = type_mark(type, 14, y, 14, name_c);
         break;
     case Theme::amber:
     default:
         if (selected)
-            ui::fill(4, y, 232, 31, ui::amber_text);
+            ui::fill(4, y, 232, card_h, ui::amber_text);
         else
-            outline(4, y, 232, 31, ui::amber_frame);
+            outline(4, y, 232, card_h, ui::amber_frame);
         name_c = selected ? ui::amber_bg : ui::amber_text;
         desc_c = selected ? ui::amber_bg : ui::amber_dim;
-        x = type_mark(type, 14, y + 3, 15, name_c);
+        x = type_mark(type, 14, y, 14, name_c);
         break;
     }
-    text(card_names[i], x, y + 6, name_c, 230 - x);
-    text(descriptions[i], theme == Theme::lcd || theme == Theme::amber ? 14 : x, y + 18, desc_c, 220);
+    text(card_names[i], x, y + 3, name_c, 230 - x);
+    text(descriptions[i], theme == Theme::lcd || theme == Theme::amber ? 14 : x, y + 13, desc_c, 220);
 }
 void type(const Controller& app)
 {
@@ -1334,8 +1337,8 @@ void type(const Controller& app)
     step_pips(2);
     int w = tag("TYPE", 7, 29);
     text(app.draft.name, 7 + w + 5, 29, role.text, 222 - w);
-    for (int i = 0; i < 3; ++i)
-        type_card(i, 40 + i * 34, int(app.draft.type) == i);
+    for (int i = 0; i < wallet_type_count; ++i)
+        type_card(i, 40 + i * (card_h + 2), int(app.draft.type) == i);
     const ui::hint hints[] = { { "A", "choose" }, { "B", "back" } };
     footer(hints, 2);
 }

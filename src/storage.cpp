@@ -45,7 +45,7 @@ bool Storage::read_directory(int index, Directory& directory)
 {
     bn::sram::read_offset(directory, index * 128);
     if (directory.magic != magic || directory.version != format_version || directory.count > max_wallets
-        || directory.filter > 3 || directory.theme > 3 || directory.sort > 2
+        || directory.filter >= filter_count || directory.theme > 3 || directory.sort > 2
         || directory.checksum != crc(&directory, offsetof(Directory, checksum)))
         return false;
     bool used[65] = { };
@@ -166,7 +166,7 @@ bool Storage::erase(Book& book, int index)
 }
 bool Storage::preferences(Book& book, uint8_t filter, Theme theme, SortOrder sort)
 {
-    if (filter > 3 || unsigned(theme) > 3 || unsigned(sort) > 2)
+    if (filter >= filter_count || unsigned(theme) > 3 || unsigned(sort) > 2)
         return false;
     Directory next = _directory;
     next.filter = filter;

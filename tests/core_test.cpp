@@ -374,12 +374,47 @@ void sorting()
     assert(app.book.theme == Theme::net && app.book.sort == SortOrder::custom);
     std::puts("Sorting: A-Z / Z-A with ties, custom order, Move, settings, persistence passed");
 }
+// The External type (someone else's wallet): saved, filtered, and chosen like the others.
+void external_type()
+{
+    std::memset(bn::sram::data, 0, bn::sram::size());
+    Controller app;
+    app.boot();
+    Wallet theirs = wallet("Alice");
+    theirs.type = WalletType::external;
+    assert(app.storage.put(app.book, 0, wallet("Mine")) && app.storage.put(app.book, 1, theirs));
+    Wallet bad = wallet("Bad");
+    bad.type = WalletType(wallet_type_count);
+    assert(!valid_wallet(bad) && !app.storage.put(app.book, 2, bad));
+    // Filter: ALL -> COLD -> HOT -> EXCH -> EXT -> ALL.
+    for (int i = 0; i < 4; ++i)
+        app.press(Button::r);
+    assert(app.book.filter == 4 && app.visible_count() == 1 && app.wallet_index() == 1);
+    app.press(Button::r);
+    assert(app.book.filter == 0 && app.visible_count() == 2);
+    // A new wallet made under the EXT filter starts as External; Up/Down cycle all four types.
+    app.press(Button::l);
+    app.press(Button::start);
+    app.press(Button::a);
+    app.press(Button::a);
+    app.press(Button::start);
+    assert(app.screen == Screen::type && app.draft.type == WalletType::external);
+    app.press(Button::down);
+    assert(app.draft.type == WalletType::cold);
+    app.press(Button::up);
+    assert(app.draft.type == WalletType::external);
+    Controller reboot;
+    reboot.boot();
+    assert(reboot.book.wallets[1].type == WalletType::external && reboot.book.filter == 4);
+    std::puts("External type: save, filter, new wallet type, type cycling passed");
+}
 int main(int argc, char** argv)
 {
     validators();
     saves();
     controls();
     sorting();
+    external_type();
     if (argc == 2)
     {
         std::memset(bn::sram::data, 255, bn::sram::size());

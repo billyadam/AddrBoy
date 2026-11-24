@@ -211,7 +211,7 @@ void Controller::handle(Button b)
         }
         if ((b == Button::l || b == Button::r) && screen != Screen::receive)
         {
-            if (!storage.preferences(book, uint8_t((book.filter + delta + 4) % 4), book.theme, book.sort))
+            if (!storage.preferences(book, uint8_t((book.filter + delta + filter_count) % filter_count), book.theme, book.sort))
                 message = "Save failed; try again";
             selected = 0;
             home();
@@ -354,7 +354,7 @@ void Controller::handle(Button b)
     if (screen == Screen::type)
     {
         if (b == Button::up || b == Button::down)
-            draft.type = WalletType((int(draft.type) + delta + 3) % 3);
+            draft.type = WalletType((int(draft.type) + delta + wallet_type_count) % wallet_type_count);
         if (b == Button::a || b == Button::start)
             screen = Screen::setup;
         if (b == Button::b)

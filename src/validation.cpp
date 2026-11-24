@@ -285,7 +285,7 @@ const char* validate_address(Network network, const char* input, char output[add
 }
 bool valid_wallet(const Wallet& wallet)
 {
-    if (unsigned(wallet.type) > 2 || !wallet.name[0] || wallet.name[name_limit])
+    if (unsigned(wallet.type) >= unsigned(wallet_type_count) || !wallet.name[0] || wallet.name[name_limit])
         return false;
     bool has_text = false;
     for (int i = 0; wallet.name[i]; ++i)

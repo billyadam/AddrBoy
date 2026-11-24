@@ -9,12 +9,12 @@
 // JSON format (see wallets.example.json):
 //   {
 //     "theme": "field" | "net" | "lcd" | "phosphor",        optional, default "field"
-//     "filter": "all" | "cold" | "hot" | "exchange",        optional, default "all"
+//     "filter": "all" | "cold" | "hot" | "exchange" | "external",  optional, default "all"
 //     "sort": "a-z" | "z-a" | "custom",                     optional, default "a-z"; "custom" keeps
 //                                                           the order of "wallets" below
 //     "wallets": [                                          up to 64, in display order
 //       { "name": "Main wallet",                            1-20 printable ASCII characters
-//         "type": "cold" | "hot" | "exchange",
+//         "type": "cold" | "hot" | "exchange" | "external",
 //         "btc": "...", "evm": "...", "sol": "...", "sui": "...", "apt": "..." }   each optional
 //     ]
 //   }
@@ -289,9 +289,9 @@ int main(int argc, char** argv)
         return 1;
     }
     if (const Value* v = member(root, "filter");
-        v && (filter = choice(v, { "all", "cold", "hot", "exchange" })) < 0)
+        v && (filter = choice(v, { "all", "cold", "hot", "exchange", "external" })) < 0)
     {
-        std::fprintf(stderr, "%s: filter must be \"all\", \"cold\", \"hot\" or \"exchange\"\n", argv[1]);
+        std::fprintf(stderr, "%s: filter must be \"all\", \"cold\", \"hot\", \"exchange\" or \"external\"\n", argv[1]);
         return 1;
     }
 
@@ -353,10 +353,10 @@ int main(int argc, char** argv)
             }
             std::strcpy(w.name, name->text.c_str());
         }
-        int type = choice(member(entry, "type"), { "cold", "hot", "exchange" });
+        int type = choice(member(entry, "type"), { "cold", "hot", "exchange", "external" });
         if (type < 0)
         {
-            std::fprintf(stderr, "%s: type must be \"cold\", \"hot\" or \"exchange\"\n", where.c_str());
+            std::fprintf(stderr, "%s: type must be \"cold\", \"hot\", \"exchange\" or \"external\"\n", where.c_str());
             ok = false;
         }
         else

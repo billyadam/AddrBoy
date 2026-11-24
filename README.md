@@ -8,7 +8,8 @@ another device to scan. Version **0.1.0**.
 
 - Up to 64 wallets with names up to 20 characters, listed A-Z, Z-A, or in a custom order
   (AuthBoy's sort; Move rearranges the custom order).
-- Cold, Hot, and Exchange categories; a persistent ALL / COLD / HOT / EXCH filter.
+- Cold, Hot, Exchange, and External (someone else's wallet) types; a persistent
+  ALL / COLD / HOT / EXCH / EXT filter.
 - Five optional address slots per wallet: BTC, EVM, SOL, SUI, and APT.
 - Create, edit, and delete wallets; add, replace, or remove individual addresses.
 - Receive screen with the complete case-sensitive address in groups of four.
@@ -44,7 +45,7 @@ embedded in the ROM.
 | Menu | New wallet / Edit wallet / Networks / Move (custom order only) / Delete: Up/Down select; A choose; B or START close |
 | Moving a wallet | Up/Down move it (stops at the ends; saved each step); A or B done |
 | Name | D-pad select key; A type; B delete; R space; L discard; SELECT toggle case; START next |
-| Type | Up/Down choose Cold / Hot / Exchange; A next; B name |
+| Type | Up/Down choose Cold / Hot / Exchange / External; A next; B name |
 | Networks setup | Up/Down select; A add/edit address; B back; START save wallet |
 | Address entry | D-pad select key; A type; B delete; SELECT toggle case; START validate and accept |
 | Settings | Up/Down choose Sort or Theme; A or Left/Right change it; B or START return |
@@ -121,12 +122,13 @@ make -C tools check                             # example save + a refused bad f
 ```
 
 See `tools/wallets.example.json`. `theme` (`field`, `net`, `lcd`, `phosphor`), `filter`
-(`all`, `cold`, `hot`, `exchange`), and `sort` (`a-z`, the default, `z-a`, or `custom` to keep
-the JSON's order) are optional. Each wallet has a `name` (1-20 printable
-ASCII characters), a `type` (`cold`, `hot`, `exchange`), and any of `btc`, `evm`, `sol`,
-`sui`, `apt`. APT addresses are padded to 64 digits, as on the device. Unknown keys are
-errors, so a typo such as `eth` is not silently dropped. Put the `.sav` next to the ROM
-with the same base name (`AddrBoy.sav`) for emulators, or copy it to the cartridge's save.
+(`all`, `cold`, `hot`, `exchange`, `external`), and `sort` (`a-z`, the default, `z-a`, or
+`custom` to keep the JSON's order) are optional. Each wallet has a `name` (1-20 printable
+ASCII characters), a `type` (`cold`, `hot`, `exchange`, `external`), and any of `btc`,
+`evm`, `sol`, `sui`, `apt`. APT addresses are padded to 64 digits, as on the device. Unknown
+keys are errors, so a typo such as `eth` is not silently dropped. Put the `.sav` next to the
+ROM with the same base name (`AddrBoy.sav`) for emulators, or copy it to the cartridge's
+save.
 
 ## Tests
 
