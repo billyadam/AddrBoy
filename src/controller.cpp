@@ -5,8 +5,8 @@ namespace addr
 {
 void Controller::boot()
 {
-    if (storage.load(book) == LoadResult::damaged)
-        screen = Screen::damaged;
+    damaged_save = storage.load(book) == LoadResult::damaged;
+    screen = Screen::welcome;
     refresh_order();
 }
 namespace
@@ -171,6 +171,12 @@ void Controller::handle(Button b)
 {
     if (screen == Screen::damaged)
         return;
+    if (screen == Screen::welcome)
+    {
+        if (b == Button::a || b == Button::start)
+            screen = damaged_save ? Screen::damaged : Screen::wallets;
+        return;
+    }
     // SELECT opens settings from the home screen (wallets / networks), as in AuthBoy, and switches
     // the keyboard case; it is unused everywhere else.
     bool home_screen = screen == Screen::wallets || screen == Screen::networks;

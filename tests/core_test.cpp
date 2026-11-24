@@ -200,6 +200,16 @@ void saves()
         assert(!std::memcmp(old.data(), bn::sram::data, old.size()));
     }
     std::memset(bn::sram::data, 0x42, bn::sram::size());
+    {
+        // A damaged save: the welcome screen first, then the recovery screen, which ignores input.
+        Controller damaged;
+        damaged.boot();
+        assert(damaged.screen == Screen::welcome && damaged.damaged_save);
+        damaged.press(Button::a);
+        assert(damaged.screen == Screen::damaged);
+        damaged.press(Button::a);
+        assert(damaged.screen == Screen::damaged);
+    }
     assert(store.load(book) == LoadResult::damaged && !store.put(book, 0, wallet()));
     for (auto c : bn::sram::data)
         assert(c == 0x42);
@@ -210,7 +220,13 @@ void controls()
     std::memset(bn::sram::data, 0, bn::sram::size());
     Controller app;
     app.boot();
-    assert(app.visible_count() == 0);
+    // Every boot opens on the welcome screen (AuthBoy's): only A or START continue.
+    assert(app.screen == Screen::welcome && app.visible_count() == 0);
+    for (Button other : { Button::b, Button::up, Button::l, Button::r, Button::select })
+        app.press(other);
+    assert(app.screen == Screen::welcome && app.book.filter == 0);
+    app.press(Button::a);
+    assert(app.screen == Screen::wallets);
     app.press(Button::a);
     assert(app.screen == Screen::wallets);
     app.press(Button::start);
@@ -320,6 +336,7 @@ void sorting()
     std::memset(bn::sram::data, 0, bn::sram::size());
     Controller app;
     app.boot();
+    app.press(Button::start); // past the welcome screen
     assert(app.book.sort == SortOrder::az);
     const char* names[] = { "bravo", "Alpha", "charlie", "alpha", "Bravo" };
     for (int i = 0; i < 5; ++i)
@@ -380,6 +397,7 @@ void external_type()
     std::memset(bn::sram::data, 0, bn::sram::size());
     Controller app;
     app.boot();
+    app.press(Button::start); // past the welcome screen
     Wallet theirs = wallet("Alice");
     theirs.type = WalletType::external;
     assert(app.storage.put(app.book, 0, wallet("Mine")) && app.storage.put(app.book, 1, theirs));

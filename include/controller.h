@@ -5,6 +5,7 @@ namespace addr
 {
 enum class Screen
 {
+    welcome, // boot title screen (AuthBoy's welcome): A or START continues
     wallets,
     networks,
     receive,
@@ -51,6 +52,7 @@ public:
     int edit_index = -1;
     bool lowercase = false, networks_only = false;
     bool moving = false;    // custom order: Up/Down move the selected wallet
+    bool damaged_save = false; // the welcome screen leads to the recovery screen
     int settings_item = 0;  // 0 Sort, 1 Theme
     int order[max_wallets] = { }; // display order: indices into book.wallets
     char input[address_capacity] = { };

@@ -14,10 +14,13 @@ int main()
     ui::init();
     app.boot();
     addr::draw(app);
-    int held_frames = 0, last_direction = -1;
+    int held_frames = 0, last_direction = -1, blink_counter = 0;
     while (true)
     {
         bn::core::update();
+        // Welcome screen: the "continue" arrow blinks every 30 frames, as in AuthBoy.
+        if (app.screen == addr::Screen::welcome && ++blink_counter % 30 == 0)
+            addr::welcome_blink(app, (blink_counter / 30) % 2 == 0);
         int direction = bn::keypad::up_held() ? 0
             : bn::keypad::down_held()         ? 1
             : bn::keypad::left_held()         ? 2

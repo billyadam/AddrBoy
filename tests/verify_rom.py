@@ -16,7 +16,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 SAVE = ROOT / "tests/build/demo.sav"
 RUNNER = Path(sys.argv[1]).resolve()
 subprocess.run([ROOT / "tests/build/core_test", SAVE], check=True)
-commands = ["wait 300"]
+commands = ["wait 300", f"shot {OUT / 'welcome.ppm'}", "key 1"]  # welcome screen, A continues
 keys = {"A": 1, "B": 2, "SELECT": 4, "START": 8, "RIGHT": 16, "LEFT": 32, "UP": 64, "DOWN": 128, "R": 256, "L": 512}
 
 
@@ -112,7 +112,7 @@ decoded = zxingcpp.read_barcodes(Image.open(OUT / "saved-qr.ppm"))
 assert len(decoded) == 1 and decoded[0].text == expected[1], decoded
 
 # Reboot from the save written by the ARM code, select the last wallet, and decode it.
-commands = ["wait 300", "key 64", "key 1", "key 1", f"shot {OUT / 'reloaded-qr.ppm'}"]
+commands = ["wait 300", "key 1", "key 64", "key 1", "key 1", f"shot {OUT / 'reloaded-qr.ppm'}"]
 with (OUT / "reboot.log").open("w") as log:
     subprocess.run([RUNNER, ROOT / "AddrBoy.gba", ROOT / "tests/build/edited.sav"], input="\n".join(commands), text=True, stdout=log, stderr=log, check=True, timeout=30)
 decoded = zxingcpp.read_barcodes(Image.open(OUT / "reloaded-qr.ppm"))

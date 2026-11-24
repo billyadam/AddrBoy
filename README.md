@@ -13,6 +13,8 @@ another device to scan. Version **0.1.0**.
 - Five optional address slots per wallet: BTC, EVM, SOL, SUI, and APT.
 - Create, edit, and delete wallets; add, replace, or remove individual addresses.
 - Receive screen with the complete case-sensitive address in groups of four.
+- A welcome screen on boot, as in AuthBoy, with the "Book Boy" logo (a handheld drawn as an
+  address book) in the theme's colors.
 - Field Guide, Net Link, Pocket LCD, and Phosphor themes, based on local copies of
   AuthBoy's renderer, fonts, and palettes.
 - Local SRAM saves with checksums and copy-on-write wallet updates. No RTC needed.
@@ -39,6 +41,7 @@ embedded in the ROM.
 
 | Screen | Controls |
 | --- | --- |
+| Welcome | A or START continue |
 | Wallets | Up/Down select; A focus networks; L/R cycle filter; START menu; SELECT settings |
 | Networks | Up/Down select; A show QR; B wallets; L/R filter and return to wallets; START menu; SELECT settings |
 | Receive | Left/Right cycle configured networks, wrapping; B networks; START menu |
@@ -171,7 +174,8 @@ checked on the target screen and lighting conditions.
 - `tools/make_save.cpp`: save file generator from a JSON wallet list.
 - `include/addr6.h`: case-sensitive 5×7 address font with a 6-pixel advance.
 - `src/ui.cpp`, `src/ui_raster.bn_iwram.cpp`: locally adapted AuthBoy renderer.
-- `addrboy_handoff/`: original requirements and HTML design reference.
+- `include/logo_bookboy.h`: the "Book Boy" logo tiles and theme palettes (from the logo handoff).
+- Design handoffs (`addrboy_handoff*/`) are kept locally and are not part of the repository.
 - `butano/`: Butano core and common fonts, zlib license; see `butano/LICENSE`.
 - `third_party/qrcodegen/`: Project Nayuki QR generator 1.8.0, MIT license; see
   `third_party/qrcodegen/LICENSE.md`.

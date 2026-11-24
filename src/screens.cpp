@@ -3,6 +3,7 @@
 #include "qrcodegen.h"
 #include "ui.h"
 #include "validation.h"
+#include "logo_bookboy.h"
 #include <cstdio>
 #include <cstring>
 
@@ -1481,6 +1482,148 @@ void confirmation(const Controller& app, const char* title, const char* detail, 
     const ui::hint hints[] = { { "A", action }, { "B", "cancel" } };
     footer(hints, 2, app.message);
 }
+// ---- Welcome (AuthBoy's title screen, with the "Book Boy" logo of addrboy_handoff_logo) ----
+constexpr int welcome_x = 4, welcome_y = 100, welcome_w = 232, welcome_h = 56;
+// The 32x32 logo, drawn into the canvas: its palette indices 1-6 (outline, spine rings, body, body
+// shade, screen, page tab) take the theme's colors from the logo handoff's table.
+void logo32(int x, int y)
+{
+    uint8_t colors[7] = { };
+    switch (theme)
+    {
+    case Theme::field:
+        colors[1] = ui::ink, colors[2] = ui::bevel, colors[3] = ui::red, colors[4] = ui::header_shadow,
+        colors[5] = ui::info, colors[6] = ui::selection;
+        break;
+    case Theme::net:
+        colors[1] = ui::net_deep, colors[2] = ui::net_secondary, colors[3] = ui::net_chip,
+        colors[4] = ui::net_chip_dark, colors[5] = ui::net_cyan, colors[6] = ui::net_green;
+        break;
+    case Theme::lcd:
+        colors[1] = ui::lcd_dark, colors[2] = ui::lcd_light, colors[3] = ui::lcd_mid, colors[4] = ui::lcd_dark,
+        colors[5] = ui::lcd_light, colors[6] = ui::lcd_screen;
+        break;
+    case Theme::amber:
+    default:
+        colors[1] = ui::amber_track, colors[2] = ui::amber_dim, colors[3] = ui::amber_frame,
+        colors[4] = ui::amber_track, colors[5] = ui::amber_text, colors[6] = ui::amber_text;
+        break;
+    }
+    for (int t = 0; t < 16; ++t)
+        for (int row = 0; row < 8; ++row)
+        {
+            uint32_t bits = adb::logo::tiles_32[t].data[row];
+            for (int column = 0; column < 8; ++column)
+                if (int index = int((bits >> (column * 4)) & 15))
+                    ui::fill(x + (t % 4) * 8 + column, y + (t / 4) * 8 + row, 1, 1, colors[index]);
+        }
+}
+// Icon, 8 px gap, then the title, centered as a group at y 28 (Pocket LCD and Phosphor).
+void logo_title_row(const char* title, int scale, uint8_t color)
+{
+    int title_w = ui::text_width(font::body, title, scale);
+    int x = (240 - (32 + 8 + title_w)) / 2;
+    logo32(x, 28);
+    ui::text(font::body, title, x + 40, 28 + (32 - 7 * scale) / 2, color, ui::no_shadow, scale);
+}
+int welcome_border()
+{
+    return theme == Theme::field ? 0 : theme == Theme::amber ? 3 : 2;
+}
+// "(A) continue" with the blinking down arrow, bottom right in the box.
+void welcome_continue(bool arrow)
+{
+    constexpr const char* label = "continue";
+    if (theme == Theme::field)
+    {
+        int right = welcome_x + welcome_w - 8, y = welcome_y + 38;
+        int x = right - 5 - 4 - ui::text_width(font::body, label) - 3 - 10;
+        ui::round_button(x, y - 1, "A", ui::ink, ui::white);
+        ui::text(font::body, label, x + 13, y, ui::ink, ui::light_shadow);
+        ui::fill(right - 5, y + 2, 5, 3, ui::white);
+        if (arrow)
+            ui::cursor_down(right - 5, y + 2, ui::red);
+        return;
+    }
+    int border = welcome_border();
+    int right = welcome_x + welcome_w - border - 8, label_y = welcome_y + welcome_h - border - 12;
+    int x = right - (skin_pill_width("A") + 4 + ui::text_width(font::body, label) + 6 + 7);
+    int w = skin_pill(x, label_y, "A");
+    ui::text(font::body, label, x + w + 4, label_y, role.text);
+    uint8_t fill = theme == Theme::net ? ui::net_chip : theme == Theme::lcd ? ui::lcd_screen : ui::amber_bg;
+    ui::fill(right - 7, label_y + 2, 7, 4, fill);
+    if (arrow)
+        for (int r = 0; r < 4; ++r)
+            ui::fill(right - 7 + r, label_y + 2 + r, 7 - 2 * r, 1, role.accent);
+}
+void welcome(const Controller& app)
+{
+    switch (theme)
+    {
+    case Theme::field:
+    {
+        // Red band; the title at 4x with the logo to its right, centered as a group.
+        ui::fill(0, 0, 240, 76, ui::red);
+        line(0, 1, 240, ui::header_light);
+        ui::fill(0, 64, 240, 4, ui::hero_accent);
+        ui::fill(0, 76, 240, 2, ui::header_shadow);
+        ui::text(font::body, "Welcome to", 120, 14, ui::header_subtext, ui::no_shadow, 1, ui::align::center);
+        int title_w = ui::text_width(font::body, "AddrBoy", 4);
+        int x = (240 - (title_w + 8 + 32)) / 2;
+        ui::text(font::body, "AddrBoy", x, 30, ui::white, ui::header_shadow, 4, ui::align::left, 2);
+        logo32(x + title_w + 8, 28);
+        break;
+    }
+    case Theme::net:
+        // Deep band, the title in a cyan tab, the logo on the band right of it.
+        ui::fill(0, 0, 240, 76, ui::net_deep);
+        line(0, 76, 240, ui::net_cyan);
+        ui::text(font::body, "Welcome to", 10, 13, ui::net_secondary);
+        parallelogram(0, 26, 176, 36, 14, ui::net_cyan, true);
+        ui::text(font::body, "AddrBoy", 10, 33, ui::net_deep, ui::no_shadow, 3);
+        logo32(192, 28);
+        break;
+    case Theme::lcd:
+        ui::fill(0, 0, 240, 76, ui::lcd_dark);
+        ui::text(font::body, "Welcome to", 120, 16, ui::lcd_light, ui::no_shadow, 1, ui::align::center);
+        logo_title_row("ADDRBOY", 3, ui::lcd_screen);
+        for (int i = 0; i < 168; i += 6)
+            ui::fill(36 + i, 64, 4, 4, ui::lcd_mid);
+        break;
+    case Theme::amber:
+    default:
+        ui::text(font::body, "WELCOME TO", 120, 18, ui::amber_dim, ui::no_shadow, 1, ui::align::center);
+        logo_title_row("ADDRBOY", 3, ui::amber_text);
+        ui::pattern_hline(4, 66, 232, 2, 4, ui::amber_frame);
+        break;
+    }
+    // Two lines, as AuthBoy's welcome ("Set a password..." / "Welcome back!").
+    const char* line_1 = "Welcome back!";
+    char line_2[40];
+    if (app.damaged_save)
+        std::strcpy(line_2, "Your save needs attention");
+    else if (!app.book.count)
+    {
+        line_1 = "Keep your receiving addresses";
+        std::strcpy(line_2, "and show them as QR codes");
+    }
+    else
+        std::snprintf(line_2, sizeof(line_2), "%d wallet%s in your address book", app.book.count,
+            app.book.count == 1 ? "" : "s");
+    box(welcome_x, welcome_y, welcome_w, welcome_h);
+    if (theme == Theme::field)
+    {
+        ui::text(font::body, line_1, welcome_x + 6, welcome_y + 8, ui::ink, ui::light_shadow);
+        ui::text(font::body, line_2, welcome_x + 6, welcome_y + 20, ui::ink, ui::light_shadow);
+    }
+    else
+    {
+        int border = welcome_border();
+        ui::text(font::body, line_1, welcome_x + border + 8, welcome_y + border + 7, role.text);
+        ui::text(font::body, line_2, welcome_x + border + 8, welcome_y + border + 19, role.text);
+    }
+    welcome_continue(true);
+}
 void settings(const Controller& app)
 {
     header("Settings");
@@ -1524,6 +1667,9 @@ void draw(const Controller& app)
     background();
     switch (app.screen)
     {
+    case Screen::welcome:
+        welcome(app);
+        break;
     case Screen::wallets:
         home(app, false);
         break;
@@ -1568,5 +1714,11 @@ void draw(const Controller& app)
         text("a backup or use a fresh save file.", 12, 104, role.dim, 216);
         break;
     }
+}
+void welcome_blink(const Controller& app, bool visible)
+{
+    theme = app.book.theme;
+    role = roles_by_theme[int(theme)];
+    welcome_continue(visible);
 }
 }
