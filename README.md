@@ -6,7 +6,8 @@ another device to scan. Version **0.1.0**.
 
 ## Features
 
-- Up to 64 wallets, in the order they were added, with names up to 20 characters.
+- Up to 64 wallets with names up to 20 characters, listed A-Z, Z-A, or in a custom order
+  (AuthBoy's sort; Move rearranges the custom order).
 - Cold, Hot, and Exchange categories; a persistent ALL / COLD / HOT / EXCH filter.
 - Five optional address slots per wallet: BTC, EVM, SOL, SUI, and APT.
 - Create, edit, and delete wallets; add, replace, or remove individual addresses.
@@ -40,12 +41,13 @@ embedded in the ROM.
 | Wallets | Up/Down select; A focus networks; L/R cycle filter; START menu; SELECT settings |
 | Networks | Up/Down select; A show QR; B wallets; L/R filter and return to wallets; START menu; SELECT settings |
 | Receive | Left/Right cycle configured networks, wrapping; B networks; START menu |
-| Menu | New wallet / Edit wallet / Networks / Delete: Up/Down select; A choose; B or START close |
+| Menu | New wallet / Edit wallet / Networks / Move (custom order only) / Delete: Up/Down select; A choose; B or START close |
+| Moving a wallet | Up/Down move it (stops at the ends; saved each step); A or B done |
 | Name | D-pad select key; A type; B delete; R space; L discard; SELECT toggle case; START next |
 | Type | Up/Down choose Cold / Hot / Exchange; A next; B name |
 | Networks setup | Up/Down select; A add/edit address; B back; START save wallet |
 | Address entry | D-pad select key; A type; B delete; SELECT toggle case; START validate and accept |
-| Settings | A or Left/Right change theme; B or START return |
+| Settings | Up/Down choose Sort or Theme; A or Left/Right change it; B or START return |
 
 SELECT opens Settings from the wallets and networks panels (as in AuthBoy) and switches
 between the ABC and abc tabs on the keyboards; it is unused elsewhere. The name keyboard
@@ -92,9 +94,10 @@ Validation references: [EIP-55](https://eips.ethereum.org/EIPS/eip-55),
 ## Save format
 
 Public addresses are saved unencrypted in 32 KB SRAM. Two CRC32-protected
-directories record wallet order, category filter, theme, and a generation number.
+directories record wallet order, category filter, theme, sort order, and a generation number.
 65 checksummed record slots provide space for 64 wallets and one spare slot. This is
-save format 2 (20-character names); format 1 saves from earlier builds are not read.
+save format 3 (20-character names, sort order); saves from earlier builds are not read.
+A Move step swaps two directory entries in one commit, so no record is rewritten.
 An edit writes and verifies the spare record before committing the new directory.
 Deletion commits a new directory without moving the remaining records.
 
@@ -117,8 +120,9 @@ tools/build/make_save my-wallets.json AddrBoy.sav
 make -C tools check                             # example save + a refused bad file
 ```
 
-See `tools/wallets.example.json`. `theme` (`field`, `net`, `lcd`, `phosphor`) and `filter`
-(`all`, `cold`, `hot`, `exchange`) are optional. Each wallet has a `name` (1-20 printable
+See `tools/wallets.example.json`. `theme` (`field`, `net`, `lcd`, `phosphor`), `filter`
+(`all`, `cold`, `hot`, `exchange`), and `sort` (`a-z`, the default, `z-a`, or `custom` to keep
+the JSON's order) are optional. Each wallet has a `name` (1-20 printable
 ASCII characters), a `type` (`cold`, `hot`, `exchange`), and any of `btc`, `evm`, `sol`,
 `sui`, `apt`. APT addresses are padded to 64 digits, as on the device. Unknown keys are
 errors, so a typo such as `eth` is not silently dropped. Put the `.sav` next to the ROM

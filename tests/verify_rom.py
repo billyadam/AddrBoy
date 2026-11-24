@@ -69,6 +69,7 @@ for theme in themes:
     key("B")  # Back to the networks panel
     key("SELECT")  # Settings
     shot(f"{theme}-settings")
+    key("DOWN")  # Theme (Sort is the first item)
     key("A")  # Next theme, committed to SRAM
     key("B")
     key("B")

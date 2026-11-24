@@ -32,6 +32,15 @@ enum class Button
     start,
     select
 };
+// START menu items. Move is only offered in the custom sort order, as in AuthBoy.
+enum class MenuItem
+{
+    new_wallet,
+    edit_wallet,
+    networks,
+    move,
+    remove
+};
 class Controller
 {
 public:
@@ -41,6 +50,9 @@ public:
     int selected = 0, network = 0, menu = 0, setup_network = 0, key = 0;
     int edit_index = -1;
     bool lowercase = false, networks_only = false;
+    bool moving = false;    // custom order: Up/Down move the selected wallet
+    int settings_item = 0;  // 0 Sort, 1 Theme
+    int order[max_wallets] = { }; // display order: indices into book.wallets
     char input[address_capacity] = { };
     const char* message = nullptr;
     Storage storage;
@@ -49,6 +61,11 @@ public:
     int visible_count() const;
     int wallet_index() const;
     int visible_index(int position) const;
+    int menu_count() const
+    {
+        return book.sort == SortOrder::custom ? 5 : 4;
+    }
+    MenuItem menu_item(int position) const;
     char keyboard_char(int position) const;
     int keyboard_columns() const
     {
@@ -56,6 +73,9 @@ public:
     }
 
 private:
+    void handle(Button button);
+    void refresh_order();
+    int position_of(int index) const;
     void begin_edit(bool fresh, bool only_networks = false);
     void save_draft();
     void home();

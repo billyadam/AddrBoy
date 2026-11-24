@@ -22,6 +22,14 @@ enum class WalletType : uint8_t
     hot,
     exchange
 };
+// How the wallet list is shown (AuthBoy's sort): A-Z / Z-A by name (case-insensitive), or the stored
+// custom order, which Move rearranges. Changing it never changes the stored order.
+enum class SortOrder : uint8_t
+{
+    az,
+    za,
+    custom
+};
 enum class Theme : uint8_t
 {
     field,
@@ -41,11 +49,13 @@ struct Book
     uint8_t count = 0;
     uint8_t filter = 0;
     Theme theme = Theme::field;
+    SortOrder sort = SortOrder::az;
 };
 inline constexpr const char* tickers[] = { "BTC", "EVM", "SOL", "SUI", "APT" };
 inline constexpr const char* network_names[] = { "Bitcoin", "ETH and L2s", "Solana", "Sui", "Aptos" };
 inline constexpr const char* type_names[] = { "Cold", "Hot", "Exchange" };
 inline constexpr const char* filter_names[] = { "ALL", "COLD", "HOT", "EXCH" };
+inline constexpr const char* sort_names[] = { "A - Z", "Z - A", "Custom" };
 inline constexpr const char* theme_names[] = { "Field Guide", "Net Link", "Pocket LCD", "Phosphor" };
 inline int network_total(const Wallet& wallet)
 {

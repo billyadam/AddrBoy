@@ -1,6 +1,7 @@
 {
   "theme": "field",
   "filter": "all",
+  "sort": "a-z",
   "wallets": [
     {
       "name": "Main wallet",

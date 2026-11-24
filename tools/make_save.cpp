@@ -10,6 +10,8 @@
 //   {
 //     "theme": "field" | "net" | "lcd" | "phosphor",        optional, default "field"
 //     "filter": "all" | "cold" | "hot" | "exchange",        optional, default "all"
+//     "sort": "a-z" | "z-a" | "custom",                     optional, default "a-z"; "custom" keeps
+//                                                           the order of "wallets" below
 //     "wallets": [                                          up to 64, in display order
 //       { "name": "Main wallet",                            1-20 printable ASCII characters
 //         "type": "cold" | "hot" | "exchange",
@@ -272,7 +274,7 @@ int main(int argc, char** argv)
         return 1;
     }
     std::string file = argv[1];
-    if (root.kind != Value::object || !only_keys(root, { "theme", "filter", "wallets" }, file))
+    if (root.kind != Value::object || !only_keys(root, { "theme", "filter", "sort", "wallets" }, file))
     {
         if (root.kind != Value::object)
             std::fprintf(stderr, "%s: the top level must be an object\n", argv[1]);
@@ -290,6 +292,13 @@ int main(int argc, char** argv)
         v && (filter = choice(v, { "all", "cold", "hot", "exchange" })) < 0)
     {
         std::fprintf(stderr, "%s: filter must be \"all\", \"cold\", \"hot\" or \"exchange\"\n", argv[1]);
+        return 1;
+    }
+
+    int sort = 0;
+    if (const Value* v = member(root, "sort"); v && (sort = choice(v, { "a-z", "z-a", "custom" })) < 0)
+    {
+        std::fprintf(stderr, "%s: sort must be \"a-z\", \"z-a\" or \"custom\"\n", argv[1]);
         return 1;
     }
 
@@ -401,7 +410,7 @@ int main(int argc, char** argv)
             std::fprintf(stderr, "wallet %zu: storage refused it\n", i + 1);
             return 3;
         }
-    if (!storage.preferences(book, uint8_t(filter), Theme(theme)))
+    if (!storage.preferences(book, uint8_t(filter), Theme(theme), SortOrder(sort)))
         return 3;
 
     // Read it back as the ROM will on boot.
@@ -420,7 +429,7 @@ int main(int argc, char** argv)
         return 2;
     }
     std::fclose(out);
-    std::printf("%s: %zu wallet%s, theme %s, filter %s\n", argv[2], wallets.size(), wallets.size() == 1 ? "" : "s",
-        theme_names[theme], filter_names[filter]);
+    std::printf("%s: %zu wallet%s, theme %s, filter %s, sort %s\n", argv[2], wallets.size(),
+        wallets.size() == 1 ? "" : "s", theme_names[theme], filter_names[filter], sort_names[sort]);
     return 0;
 }

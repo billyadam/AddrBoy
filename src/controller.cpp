@@ -7,23 +7,91 @@ void Controller::boot()
 {
     if (storage.load(book) == LoadResult::damaged)
         screen = Screen::damaged;
+    refresh_order();
+}
+namespace
+{
+char lower(char c)
+{
+    return c >= 'A' && c <= 'Z' ? char(c + 32) : c;
+}
+// Case-insensitive name comparison: < 0, 0 or > 0.
+int compare_names(const Wallet& x, const Wallet& y)
+{
+    for (int i = 0; i <= name_limit; ++i)
+    {
+        char a = lower(x.name[i]), b = lower(y.name[i]);
+        if (a != b)
+            return a < b ? -1 : 1;
+        if (!a)
+            break;
+    }
+    return 0;
+}
+}
+// AuthBoy's display order: A-Z by name (stable, so equal names keep their stored order); Z-A is that
+// backwards, except that wallets with the same name still keep their stored order; custom is the
+// stored order.
+void Controller::refresh_order()
+{
+    for (int i = 0; i < book.count; ++i)
+        order[i] = i;
+    if (book.sort == SortOrder::custom)
+        return;
+    for (int i = 1; i < book.count; ++i)
+        for (int j = i; j > 0 && compare_names(book.wallets[order[j - 1]], book.wallets[order[j]]) > 0; --j)
+        {
+            int t = order[j];
+            order[j] = order[j - 1];
+            order[j - 1] = t;
+        }
+    if (book.sort == SortOrder::za)
+    {
+        int az[max_wallets], out = 0;
+        std::memcpy(az, order, sizeof(az));
+        for (int end = book.count; end > 0;)
+        {
+            int start = end - 1;
+            while (start > 0 && !compare_names(book.wallets[az[start - 1]], book.wallets[az[start]]))
+                --start;
+            for (int i = start; i < end; ++i)
+                order[out++] = az[i];
+            end = start;
+        }
+    }
+}
+static bool shown(const Book& book, const Wallet& wallet)
+{
+    return !book.filter || unsigned(wallet.type) + 1 == book.filter;
 }
 int Controller::visible_count() const
 {
     int count = 0;
     for (int i = 0; i < book.count; ++i)
-        count += !book.filter || unsigned(book.wallets[i].type) + 1 == book.filter;
+        count += shown(book, book.wallets[i]);
     return count;
 }
 int Controller::visible_index(int position) const
 {
     for (int i = 0; i < book.count; ++i)
-        if (!book.filter || unsigned(book.wallets[i].type) + 1 == book.filter)
-        {
-            if (!position--)
-                return i;
-        }
+        if (shown(book, book.wallets[order[i]]) && !position--)
+            return order[i];
     return -1;
+}
+// Position of a wallet in the visible list, or -1.
+int Controller::position_of(int index) const
+{
+    for (int i = 0; i < visible_count(); ++i)
+        if (visible_index(i) == index)
+            return i;
+    return -1;
+}
+MenuItem Controller::menu_item(int position) const
+{
+    constexpr MenuItem sorted[] = { MenuItem::new_wallet, MenuItem::edit_wallet, MenuItem::networks, MenuItem::remove };
+    constexpr MenuItem custom[]
+        = { MenuItem::new_wallet, MenuItem::edit_wallet, MenuItem::networks, MenuItem::move, MenuItem::remove };
+    return book.sort == SortOrder::custom ? custom[position] : sorted[position];
 }
 int Controller::wallet_index() const
 {
@@ -87,12 +155,19 @@ void Controller::save_draft()
         return;
     }
     home();
-    for (int i = 0; i < visible_count(); ++i)
-        if (visible_index(i) == edit_index)
-            selected = i;
+    refresh_order();
+    if (int position = position_of(edit_index); position >= 0)
+        selected = position;
     message = "Wallet saved";
 }
 void Controller::press(Button b)
+{
+    // The display order follows the book (sorting is cheap: at most 64 names).
+    refresh_order();
+    handle(b);
+    refresh_order();
+}
+void Controller::handle(Button b)
 {
     if (screen == Screen::damaged)
         return;
@@ -103,6 +178,21 @@ void Controller::press(Button b)
         return;
     message = nullptr;
     int delta = b == Button::up || b == Button::left || b == Button::l ? -1 : 1;
+    // Moving a wallet (custom order, from the menu's Move): Up/Down move it, A or B finish.
+    if (moving)
+    {
+        int target = selected + delta;
+        if ((b == Button::up || b == Button::down) && target >= 0 && target < visible_count())
+        {
+            if (storage.swap(book, visible_index(selected), visible_index(target)))
+                selected = target;
+            else
+                message = "Save failed; try again";
+        }
+        if (b == Button::a || b == Button::b)
+            moving = false;
+        return;
+    }
     if (screen == Screen::wallets || screen == Screen::networks || screen == Screen::receive)
     {
         if (b == Button::start)
@@ -116,11 +206,12 @@ void Controller::press(Button b)
         {
             return_screen = screen;
             screen = Screen::settings;
+            settings_item = 0;
             return;
         }
         if ((b == Button::l || b == Button::r) && screen != Screen::receive)
         {
-            if (!storage.preferences(book, uint8_t((book.filter + delta + 4) % 4), book.theme))
+            if (!storage.preferences(book, uint8_t((book.filter + delta + 4) % 4), book.theme, book.sort))
                 message = "Save failed; try again";
             selected = 0;
             home();
@@ -165,21 +256,30 @@ void Controller::press(Button b)
     }
     if (screen == Screen::menu)
     {
-        // New wallet / Edit wallet / Networks / Delete (Settings is on SELECT).
+        // New wallet / Edit wallet / Networks / [Move] / Delete (Settings is on SELECT).
+        int count = menu_count();
         if (b == Button::up || b == Button::down)
-            menu = (menu + delta + 4) % 4;
+            menu = (menu + delta + count) % count;
         if (b == Button::b || b == Button::start)
             screen = return_screen;
         if (b == Button::a)
         {
-            if (menu == 0)
+            MenuItem item = menu_item(menu);
+            if (item == MenuItem::new_wallet)
                 begin_edit(true);
             else if (wallet_index() < 0)
                 message = "Choose a wallet first";
-            else if (menu == 1)
+            else if (item == MenuItem::edit_wallet)
                 begin_edit(false);
-            else if (menu == 2)
+            else if (item == MenuItem::networks)
                 begin_edit(false, true);
+            else if (item == MenuItem::move)
+            {
+                // Moving happens in the wallet list.
+                screen = Screen::wallets;
+                network = 0;
+                moving = true;
+            }
             else
                 screen = Screen::remove_wallet;
         }
@@ -192,11 +292,24 @@ void Controller::press(Button b)
             screen = return_screen;
             return;
         }
+        // As AuthBoy's settings: Up/Down choose Sort or Theme; A (or Left/Right) changes it.
+        if (b == Button::up || b == Button::down)
+            settings_item = 1 - settings_item;
         if (b == Button::a || b == Button::left || b == Button::right)
         {
-            Theme theme = Theme((int(book.theme) + delta + 4) % 4);
-            if (!storage.preferences(book, book.filter, theme))
+            SortOrder sort = book.sort;
+            Theme theme = book.theme;
+            if (settings_item == 0)
+                sort = SortOrder((int(sort) + delta + 3) % 3); // A-Z -> Z-A -> Custom -> A-Z
+            else
+                theme = Theme((int(theme) + delta + 4) % 4);
+            // The highlighted wallet stays highlighted when the order changes.
+            int index = wallet_index();
+            if (!storage.preferences(book, book.filter, theme, sort))
                 message = "Save failed; try again";
+            refresh_order();
+            if (int position = position_of(index); index >= 0 && position >= 0)
+                selected = position;
         }
         return;
     }

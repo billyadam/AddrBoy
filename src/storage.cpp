@@ -9,8 +9,9 @@ namespace
 {
 constexpr uint32_t magic = 0x52444441; // ADDR, little endian
 constexpr int records_offset = 256;
-// Format 2: 20-character names (357-byte wallets, 364-byte records). Format 1 saves are not read.
-constexpr uint8_t format_version = 2;
+// Format 3: 20-character names (357-byte wallets, 364-byte records) and the sort order in the
+// directory. Earlier formats are not read.
+constexpr uint8_t format_version = 3;
 struct Record
 {
     Wallet wallet;
@@ -44,7 +45,7 @@ bool Storage::read_directory(int index, Directory& directory)
 {
     bn::sram::read_offset(directory, index * 128);
     if (directory.magic != magic || directory.version != format_version || directory.count > max_wallets
-        || directory.filter > 3 || directory.theme > 3
+        || directory.filter > 3 || directory.theme > 3 || directory.sort > 2
         || directory.checksum != crc(&directory, offsetof(Directory, checksum)))
         return false;
     bool used[65] = { };
@@ -92,6 +93,7 @@ LoadResult Storage::load(Book& book)
     book.count = _directory.count;
     book.filter = _directory.filter;
     book.theme = Theme(_directory.theme);
+    book.sort = SortOrder(_directory.sort);
     for (int i = 0; i < book.count; ++i)
     {
         Record record;
@@ -162,17 +164,34 @@ bool Storage::erase(Book& book, int index)
     book.wallets[--book.count] = Wallet { };
     return true;
 }
-bool Storage::preferences(Book& book, uint8_t filter, Theme theme)
+bool Storage::preferences(Book& book, uint8_t filter, Theme theme, SortOrder sort)
 {
-    if (filter > 3 || unsigned(theme) > 3)
+    if (filter > 3 || unsigned(theme) > 3 || unsigned(sort) > 2)
         return false;
     Directory next = _directory;
     next.filter = filter;
     next.theme = uint8_t(theme);
+    next.sort = uint8_t(sort);
     if (!commit(next))
         return false;
     book.filter = filter;
     book.theme = theme;
+    book.sort = sort;
+    return true;
+}
+bool Storage::swap(Book& book, int a, int b)
+{
+    if (!_writable || a < 0 || b < 0 || a >= book.count || b >= book.count || a == b)
+        return false;
+    Directory next = _directory;
+    uint8_t slot = next.slots[a];
+    next.slots[a] = next.slots[b];
+    next.slots[b] = slot;
+    if (!commit(next))
+        return false;
+    Wallet wallet = book.wallets[a];
+    book.wallets[a] = book.wallets[b];
+    book.wallets[b] = wallet;
     return true;
 }
 }

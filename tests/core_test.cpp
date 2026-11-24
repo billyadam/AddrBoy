@@ -129,7 +129,7 @@ void saves()
         assert(store.put(book, i, w));
     }
     assert(book.count == 64 && !store.put(book, 64, wallet()));
-    assert(store.preferences(book, 3, Theme::amber));
+    assert(store.preferences(book, 3, Theme::amber, SortOrder::za));
     Book loaded;
     Storage reboot;
     assert(reboot.load(loaded) == LoadResult::ready);
@@ -140,7 +140,7 @@ void saves()
     // Power loss after every possible byte of a full-capacity edit.
     std::vector<unsigned char> snapshot(bn::sram::data, bn::sram::data + bn::sram::size());
     Wallet edited = wallet("Edited");
-    for (int cutoff = 0; cutoff <= 444; ++cutoff)
+    for (int cutoff = 0; cutoff <= 448; ++cutoff)
     {
         std::memcpy(bn::sram::data, snapshot.data(), snapshot.size());
         Storage current;
@@ -156,23 +156,26 @@ void saves()
         assert(!std::strcmp(recovered.wallets[0].name, saved ? "Edited" : "Wallet 0"));
         assert(!std::memcmp(recovered.wallets + 1, loaded.wallets + 1, 63 * sizeof(Wallet)));
     }
-    // Interrupted delete and preference commits retain the previous directory.
-    for (int operation = 0; operation < 2; ++operation)
-        for (int cutoff = 0; cutoff <= 80; ++cutoff)
+    // Interrupted delete, preference and move commits retain the previous directory.
+    for (int operation = 0; operation < 3; ++operation)
+        for (int cutoff = 0; cutoff <= 84; ++cutoff)
         {
             std::memcpy(bn::sram::data, snapshot.data(), snapshot.size());
             Storage current;
             Book current_book;
             assert(current.load(current_book) == LoadResult::ready);
             bn::sram::write_budget = cutoff;
-            bool saved = operation ? current.preferences(current_book, 1, Theme::lcd)
-                                   : current.erase(current_book, 20);
+            bool saved = operation == 1 ? current.preferences(current_book, 1, Theme::lcd, SortOrder::custom)
+                : operation == 2        ? current.swap(current_book, 0, 1)
+                                        : current.erase(current_book, 20);
             bn::sram::write_budget = -1;
             Storage after;
             Book recovered;
             assert(after.load(recovered) == LoadResult::ready);
-            assert(recovered.count == (saved && !operation ? 63 : 64));
-            assert(recovered.filter == (saved && operation ? 1 : 3));
+            assert(recovered.count == (saved && operation == 0 ? 63 : 64));
+            assert(recovered.filter == (saved && operation == 1 ? 1 : 3));
+            assert(recovered.sort == (saved && operation == 1 ? SortOrder::custom : SortOrder::za));
+            assert(!std::strcmp(recovered.wallets[0].name, saved && operation == 2 ? "Wallet 1" : "Wallet 0"));
         }
     // A 20-character name survives a reload.
     {
@@ -183,14 +186,14 @@ void saves()
         Book reread;
         assert(again.load(reread) == LoadResult::ready && !std::strcmp(reread.wallets[0].name, longest.name));
     }
-    // A format 1 save (16-character names) is not read, and is left untouched.
+    // A format 2 save (no sort order) is not read, and is left untouched.
     {
         std::memset(bn::sram::data, 0, bn::sram::size());
         Storage fresh;
         Book empty_book;
         assert(fresh.load(empty_book) == LoadResult::empty && fresh.put(empty_book, 0, wallet()));
-        bn::sram::data[8] = 1; // directory version byte of both copies
-        bn::sram::data[128 + 8] = 1;
+        bn::sram::data[8] = 2; // directory version byte of both copies
+        bn::sram::data[128 + 8] = 2;
         std::vector<unsigned char> old(bn::sram::data, bn::sram::data + bn::sram::size());
         Storage later;
         assert(later.load(empty_book) == LoadResult::damaged);
@@ -200,7 +203,7 @@ void saves()
     assert(store.load(book) == LoadResult::damaged && !store.put(book, 0, wallet()));
     for (auto c : bn::sram::data)
         assert(c == 0x42);
-    std::puts("Storage: 64 wallets, reload, order, 607 interrupted writes, damaged-save protection passed");
+    std::puts("Storage: 64 wallets, reload, order, 619 interrupted writes, damaged-save protection passed");
 }
 void controls()
 {
@@ -310,11 +313,73 @@ void controls()
     assert(reboot.book.filter == 1 && reboot.book.count == 1);
     std::puts("Controls: create empty wallet, filtering, QR navigation, validation, removal/discard passed");
 }
+// AuthBoy's sort: A-Z / Z-A by name (case-insensitive, equal names in stored order), or the custom
+// order, which Move rearranges.
+void sorting()
+{
+    std::memset(bn::sram::data, 0, bn::sram::size());
+    Controller app;
+    app.boot();
+    assert(app.book.sort == SortOrder::az);
+    const char* names[] = { "bravo", "Alpha", "charlie", "alpha", "Bravo" };
+    for (int i = 0; i < 5; ++i)
+        assert(app.storage.put(app.book, i, wallet(names[i])));
+    auto listed = [&] {
+        std::string s;
+        for (int i = 0; i < app.visible_count(); ++i)
+            s += std::string(app.book.wallets[app.visible_index(i)].name) + ",";
+        return s;
+    };
+    auto highlighted = [&] { return std::string(app.book.wallets[app.wallet_index()].name); };
+    app.press(Button::down); // any press refreshes the display order
+    assert(listed() == "Alpha,alpha,bravo,Bravo,charlie," && highlighted() == "alpha");
+    assert(app.menu_count() == 4);
+    // Settings: Sort is the first item; A cycles A-Z -> Z-A -> Custom; the highlight stays on "alpha".
+    app.press(Button::select);
+    assert(app.screen == Screen::settings && app.settings_item == 0);
+    app.press(Button::a);
+    assert(app.book.sort == SortOrder::za && listed() == "charlie,bravo,Bravo,Alpha,alpha,");
+    assert(highlighted() == "alpha");
+    app.press(Button::a);
+    assert(app.book.sort == SortOrder::custom && listed() == "bravo,Alpha,charlie,alpha,Bravo,");
+    assert(highlighted() == "alpha" && app.menu_count() == 5);
+    app.press(Button::b);
+    assert(app.screen == Screen::wallets);
+    // Move (custom order only): Up/Down move the wallet and stop at the ends; A finishes.
+    app.press(Button::start);
+    for (int i = 0; i < 3; ++i)
+        app.press(Button::down);
+    assert(app.menu_item(app.menu) == MenuItem::move);
+    app.press(Button::a);
+    assert(app.moving && app.screen == Screen::wallets);
+    app.press(Button::up);
+    app.press(Button::up);
+    assert(listed() == "bravo,alpha,Alpha,charlie,Bravo," && app.selected == 1);
+    app.press(Button::up);
+    app.press(Button::up);
+    app.press(Button::start); // ignored while moving
+    assert(listed() == "alpha,bravo,Alpha,charlie,Bravo," && app.selected == 0 && app.moving);
+    app.press(Button::a);
+    assert(!app.moving && app.screen == Screen::wallets);
+    // The custom order and the sort setting survive a reboot.
+    Controller reboot;
+    reboot.boot();
+    assert(reboot.book.sort == SortOrder::custom);
+    for (int i = 0; i < 5; ++i)
+        assert(!std::strcmp(reboot.book.wallets[i].name, app.book.wallets[i].name));
+    // Theme is the second settings item.
+    app.press(Button::select);
+    app.press(Button::down);
+    app.press(Button::a);
+    assert(app.book.theme == Theme::net && app.book.sort == SortOrder::custom);
+    std::puts("Sorting: A-Z / Z-A with ties, custom order, Move, settings, persistence passed");
+}
 int main(int argc, char** argv)
 {
     validators();
     saves();
     controls();
+    sorting();
     if (argc == 2)
     {
         std::memset(bn::sram::data, 255, bn::sram::size());
@@ -329,6 +394,8 @@ int main(int argc, char** argv)
             w.type = WalletType(i % 3);
             assert(store.put(book, i, w));
         }
+        // Custom order: the emulator test expects the stored order (a new wallet comes last).
+        assert(store.preferences(book, 0, Theme::field, SortOrder::custom));
         FILE* file = std::fopen(argv[1], "wb");
         assert(file);
         std::fwrite(bn::sram::data, 1, bn::sram::size(), file);

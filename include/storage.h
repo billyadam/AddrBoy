@@ -17,14 +17,16 @@ public:
     LoadResult load(Book& book);
     bool put(Book& book, int index, const Wallet& wallet);
     bool erase(Book& book, int index);
-    bool preferences(Book& book, uint8_t filter, Theme theme);
+    bool preferences(Book& book, uint8_t filter, Theme theme, SortOrder sort);
+    // Swaps two wallets in the stored (custom) order; one directory commit, no record writes.
+    bool swap(Book& book, int a, int b);
 
 private:
     struct Directory
     {
         uint32_t magic;
         uint32_t generation;
-        uint8_t version, count, filter, theme;
+        uint8_t version, count, filter, theme, sort, reserved[3];
         uint8_t slots[max_wallets];
         uint32_t checksum;
     };

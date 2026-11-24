@@ -435,9 +435,15 @@ struct RowStyle
     uint8_t text, dim;
     int x; // where the row content starts
 };
+// AuthBoy's moving cursor: up and down arrows in place of the row cursor.
+void move_arrows(int x, int y, int h, uint8_t color)
+{
+    ui::cursor_up(x, y + h / 2 - 5, color);
+    ui::cursor_down(x, y + h / 2 + 2, color);
+}
 // Draws a list row's background (and cursor). index alternates the Field Guide zebra rows. strip is
-// the Net Link type strip color (0 for none).
-RowStyle row(int x, int y, int w, int h, Row state, int index, uint8_t strip = 0)
+// the type strip color (0 for none). moving: the selected row is being moved (custom order).
+RowStyle row(int x, int y, int w, int h, Row state, int index, uint8_t strip = 0, bool moving = false)
 {
     switch (theme)
     {
@@ -467,7 +473,9 @@ RowStyle row(int x, int y, int w, int h, Row state, int index, uint8_t strip = 0
         }
         if (strip)
             ui::fill(x, y, 3, h, strip);
-        if (state == Row::selected)
+        if (state == Row::selected && moving)
+            move_arrows(cursor_x, y, h, ui::red);
+        else if (state == Row::selected)
             ui::cursor_right(cursor_x, y + (h - 8) / 2, ui::red);
         return { text_c, ui::secondary, content_x };
     }
@@ -482,7 +490,10 @@ RowStyle row(int x, int y, int w, int h, Row state, int index, uint8_t strip = 0
             ui::round_fill(x, y, w, h, 2, ui::net_green);
             ui::fill(x + 2, y + 2, w - 4, h - 4, ui::net_selected);
             ui::fill(x + 2 + (strip ? sw : 0), y + 2, w - 4 - (strip ? sw : 0), 1, ui::net_cyan);
-            ui::cursor_right(x - 6, y + (h - 8) / 2, ui::net_green);
+            if (moving)
+                move_arrows(x - 6, y, h, ui::net_green);
+            else
+                ui::cursor_right(x - 6, y + (h - 8) / 2, ui::net_green);
         }
         else if (state == Row::locked)
         {
@@ -509,8 +520,11 @@ RowStyle row(int x, int y, int w, int h, Row state, int index, uint8_t strip = 0
     case Theme::lcd:
         if (state == Row::selected)
         {
+            // No cursor, except the arrows while moving (the content makes room for them).
             ui::round_fill(x, y, w, h, 2, ui::lcd_dark);
-            return { ui::lcd_screen, ui::lcd_light, x + 4 };
+            if (moving)
+                move_arrows(x + 2, y, h, ui::lcd_light);
+            return { ui::lcd_screen, ui::lcd_light, x + (moving ? 9 : 4) };
         }
         if (state == Row::locked)
             outline(x, y, w, h, ui::lcd_dark);
@@ -520,7 +534,10 @@ RowStyle row(int x, int y, int w, int h, Row state, int index, uint8_t strip = 0
         if (state == Row::selected)
         {
             ui::fill(x, y, w, h, ui::amber_text);
-            ui::text(font::body, ">", x + 2, y + (h > 17 ? 3 : (h - 8) / 2), ui::amber_bg);
+            if (moving)
+                move_arrows(x + 2, y, h, ui::amber_bg);
+            else
+                ui::text(font::body, ">", x + 2, y + (h > 17 ? 3 : (h - 8) / 2), ui::amber_bg);
             return { ui::amber_bg, ui::amber_bg, x + 8 };
         }
         if (state == Row::locked)
@@ -985,7 +1002,8 @@ void home(const Controller& app, bool right_active)
                 : right_active ? Row::dimmed
                                : Row::normal;
             separator(row_x, y - 1, row_w, previous, state);
-            RowStyle s = row(row_x, y, row_w, row_height, state, pos - first, type_colors[int(wallet.type)]);
+            RowStyle s = row(row_x, y, row_w, row_height, state, pos - first, type_colors[int(wallet.type)],
+                active && app.moving);
             int name_x = type_mark(wallet.type, s.x, y, row_height, s.text, false, true);
             text(wallet.name, name_x, y + (row_height - 8) / 2, s.text, row_x + row_w - name_x);
             previous = state;
@@ -1033,9 +1051,13 @@ void home(const Controller& app, bool right_active)
     else
     {
         // As AuthBoy's home: SEL opens settings (it also works from the networks panel, whose
-        // footer has no room for a fourth hint).
+        // footer has no room for a fourth hint). While moving: AuthBoy's move hints.
         const ui::hint hints[] = { { "A", "select" }, { "STA", "menu" }, { "SEL", "settings" } };
-        footer(hints, 3, app.message);
+        const ui::hint move_hints[] = { { ui::dpad_up_down, "move" }, { "A", "done" } };
+        if (app.moving)
+            footer(move_hints, 2, app.message);
+        else
+            footer(hints, 3, app.message);
     }
 }
 uint8_t qr[qrcodegen_BUFFER_LEN_FOR_VERSION(4)];
@@ -1137,8 +1159,9 @@ void menu(const Controller& app)
         home(app, app.return_screen == Screen::networks);
     modal_backdrop();
     box(4, 108, 128, 50);
-    // Command box: four items (Settings is on SELECT), bottom-aligned where the handoff's box ends.
-    constexpr int items = 4, box_h = 12 + items * 16, box_y = 158 - box_h;
+    // Command box: four items, five with Move in the custom order (Settings is on SELECT),
+    // bottom-aligned where the handoff's box ends.
+    int items = app.menu_count(), box_h = 12 + items * 16, box_y = 158 - box_h;
     box(134, box_y, 102, box_h);
     int index = app.wallet_index();
     if (index >= 0)
@@ -1152,9 +1175,13 @@ void menu(const Controller& app)
     }
     else
         text("Your address book", 12, 119, role.dim, 112);
-    constexpr const char* labels[items] = { "New wallet", "Edit wallet", "Networks", "Delete" };
+    constexpr const char* labels[] = { "New wallet", "Edit wallet", "Networks", "Move", "Delete" };
     for (int i = 0; i < items; ++i)
-        menu_item(134, 102, box_y + 5 + i * 16, labels[i], i == app.menu, i == 3, index < 0 && i > 0);
+    {
+        MenuItem item = app.menu_item(i);
+        menu_item(134, 102, box_y + 5 + i * 16, labels[int(item)], i == app.menu, item == MenuItem::remove,
+            index < 0 && item != MenuItem::new_wallet);
+    }
     if (app.message)
         text(app.message, 12, 143, role.danger, 112);
 }
@@ -1457,12 +1484,14 @@ void settings(const Controller& app)
     char count[28];
     std::snprintf(count, sizeof(count), "%d / 64 wallets stored", app.book.count);
     info_box(count);
-    box(4, 54, 232, 28);
-    menu_item(4, 232, 59, "Theme", true, false, false, theme_names[int(theme)]);
-    text("AddrBoy 0.1.0", 8, 96, role.dim, 224);
-    text("Public wallet addresses / local save", 8, 111, role.dim, 224);
-    const ui::hint hints[] = { { "A", "change theme" }, { "B", "back" } };
-    footer(hints, 2, app.message);
+    // As AuthBoy's settings: Sort, then Theme, 18 px apart.
+    box(4, 54, 232, 9 + 2 * 18 + 1);
+    menu_item(4, 232, 59, "Sort", app.settings_item == 0, false, false, sort_names[int(app.book.sort)]);
+    menu_item(4, 232, 77, "Theme", app.settings_item == 1, false, false, theme_names[int(theme)]);
+    text("AddrBoy 0.1.0", 8, 110, role.dim, 224);
+    text("Public wallet addresses / local save", 8, 125, role.dim, 224);
+    const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "change" }, { "B", "back" } };
+    footer(hints, 3, app.message);
 }
 }
 void draw(const Controller& app)
