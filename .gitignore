@@ -1,0 +1,11 @@
+build/
+*.elf
+*.gba
+*.map
+*.sav
+*.srm
+tests/build/
+__pycache__/
+# Wallet data: never commit real wallet lists or saves (only the example list is tracked).
+*wallets*.json
+!tools/wallets.example.json

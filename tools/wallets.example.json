@@ -1,0 +1,31 @@
+{
+  "theme": "field",
+  "filter": "all",
+  "wallets": [
+    {
+      "name": "Main wallet",
+      "type": "cold",
+      "btc": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+      "evm": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+      "sol": "So11111111111111111111111111111111111111112",
+      "sui": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "apt": "0x1"
+    },
+    {
+      "name": "Daily spend",
+      "type": "hot",
+      "evm": "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+      "sol": "11111111111111111111111111111111"
+    },
+    {
+      "name": "Exchange deposit",
+      "type": "exchange",
+      "btc": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0"
+    },
+    {
+      "name": "Old paper wallet",
+      "type": "cold",
+      "btc": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+    }
+  ]
+}
