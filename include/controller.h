@@ -15,6 +15,7 @@ enum class Screen
     setup,
     address,
     settings,
+    about, // AuthBoy's About pages (SELECT in Settings)
     remove_wallet,
     discard,
     remove_address,
@@ -54,6 +55,7 @@ public:
     bool moving = false;    // custom order: Up/Down move the selected wallet
     bool damaged_save = false; // the welcome screen leads to the recovery screen
     int settings_item = 0;  // 0 Sort, 1 Theme
+    int about_page = 0;     // 0 About, 1 Good to know, 2 How it works, 3 Libraries
     int order[max_wallets] = { }; // display order: indices into book.wallets
     char input[address_capacity] = { };
     const char* message = nullptr;
@@ -63,6 +65,7 @@ public:
     int visible_count() const;
     int wallet_index() const;
     int visible_index(int position) const;
+    static constexpr int about_page_count = 4;
     int menu_count() const
     {
         return book.sort == SortOrder::custom ? 5 : 4;

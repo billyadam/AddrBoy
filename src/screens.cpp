@@ -1627,6 +1627,11 @@ void welcome(const Controller& app)
 void settings(const Controller& app)
 {
     header("Settings");
+    // The version sits in the header, as in AuthBoy's settings.
+    if (theme == Theme::field)
+        ui::text(font::digits, app_version_label, 233, 8, ui::header_subtext, ui::no_shadow, 1, ui::align::right);
+    else
+        header_counter(app_version_label);
     char count[28];
     std::snprintf(count, sizeof(count), "%d / 64 wallets stored", app.book.count);
     info_box(count);
@@ -1634,10 +1639,123 @@ void settings(const Controller& app)
     box(4, 54, 232, 9 + 2 * 18 + 1);
     menu_item(4, 232, 59, "Sort", app.settings_item == 0, false, false, sort_names[int(app.book.sort)]);
     menu_item(4, 232, 77, "Theme", app.settings_item == 1, false, false, theme_names[int(theme)]);
-    text("AddrBoy 0.1.0", 8, 110, role.dim, 224);
-    text("Public wallet addresses / local save", 8, 125, role.dim, 224);
-    const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "change" }, { "B", "back" } };
+    const ui::hint hints[] = { { "A", "change" }, { "B", "back" }, { "SEL", "about" } };
     footer(hints, 3, app.message);
+}
+// ---- About (AuthBoy's About pages, opened with SELECT in Settings) ----
+constexpr const char* about_url = "https://github.com/billyadam/AddrBoy";
+constexpr int about_x = 4, about_y = 28, about_w = 232, about_h = 110, about_text_x = 12;
+struct AboutItem
+{
+    const char* label;
+    const char* value;
+};
+constexpr AboutItem how_it_works[] = {
+    { "Address checks", "Bech32, Base58Check, EIP-55" },
+    { "QR codes", "Byte mode, ECC L, black on white" },
+    { "Saving", "2 directories + spare, power-cut safe" },
+    { "Capacity", "64 wallets, 5 networks each" },
+};
+constexpr AboutItem libraries[] = {
+    { "Game engine", "Butano 21.10.1 (zlib)" },
+    { "QR codes", "QR Code generator 1.8.0 (MIT)" },
+    { "Toolchain", "devkitARM" },
+};
+constexpr const char* good_to_know[] = {
+    "AddrBoy stores public receiving addresses only: no private keys, no signing, no network.",
+    "Saves aren't encrypted: anyone with your .sav can read your addresses.",
+    "Check each address against its own wallet when you enter it: typos aren't always caught "
+    "(SOL, SUI, APT, lowercase EVM).",
+};
+// Word wrap (AuthBoy's about_layout::wrap): draws each run of whole words that fits max_width.
+// Returns the y below the last line.
+int wrapped(const char* s, int x, int y, int max_width, int line_step, uint8_t color)
+{
+    while (*s)
+    {
+        while (*s == ' ')
+            ++s;
+        int end = 0, fit = 0;
+        while (s[end])
+        {
+            int word_end = end;
+            while (s[word_end] == ' ')
+                ++word_end;
+            while (s[word_end] && s[word_end] != ' ')
+                ++word_end;
+            if (fit && ui::text_width(font::body, bn::string_view(s, word_end)) > max_width)
+                break;
+            fit = word_end;
+            end = word_end;
+        }
+        if (!fit)
+            break;
+        ui::text(font::body, bn::string_view(s, fit), x, y, color);
+        y += line_step;
+        s += fit;
+    }
+    return y;
+}
+void about_items(const AboutItem* items, int count)
+{
+    for (int i = 0; i < count; ++i)
+    {
+        int y = about_y + 7 + i * 26;
+        ui::text(font::body, items[i].label, about_text_x, y, role.dim);
+        ui::text(font::body, items[i].value, about_text_x, y + 11, role.text);
+    }
+}
+uint8_t about_qr[qrcodegen_BUFFER_LEN_FOR_VERSION(4)];
+bool about_qr_ready = false;
+void about(const Controller& app)
+{
+    constexpr const char* titles[] = { "About", "Good to know", "How it works", "Libraries" };
+    int page = app.about_page;
+    header(titles[page]);
+    char counter[24];
+    std::snprintf(counter, sizeof(counter), "%d/%d", page + 1, Controller::about_page_count);
+    if (theme == Theme::field)
+        ui::text(font::digits, counter, 233, 8, ui::header_subtext, ui::no_shadow, 1, ui::align::right);
+    else
+        header_counter(counter);
+    panel(about_x, about_y, about_w, about_h);
+    if (page == 0)
+    {
+        // Logo, name, version, what it is, author and link, with the link's QR Code top right.
+        logo32(about_text_x, about_y + 8);
+        ui::text(font::title12, "AddrBoy", about_text_x + 38, about_y + 10, role.text);
+        ui::text(font::digits, app_version_label, about_text_x + 38, about_y + 27, role.dim);
+        ui::text(font::body, "Wallet address book for", about_text_x, about_y + 50, role.text);
+        ui::text(font::body, "the Game Boy Advance", about_text_x, about_y + 62, role.text);
+        ui::text(font::body, "by Billy Adam", about_text_x, about_y + 74, role.dim);
+        ui::text(font::body, "github.com/billyadam/AddrBoy", about_text_x, about_y + 94, role.dim);
+        if (!about_qr_ready)
+        {
+            int size = int(std::strlen(about_url));
+            uint8_t data[qrcodegen_BUFFER_LEN_FOR_VERSION(4)] = { };
+            std::memcpy(data, about_url, size);
+            about_qr_ready
+                = qrcodegen_encodeBinary(data, size, about_qr, qrcodegen_Ecc_LOW, 1, 4, qrcodegen_Mask_AUTO, false);
+        }
+        if (about_qr_ready)
+        {
+            // Black on white with its four-module quiet zone, 2 px modules.
+            int side = (qrcodegen_getSize(about_qr) + 8) * 2;
+            ui::qr_code(about_qr, about_x + about_w - 6 - side, about_y + 6, side, 2);
+        }
+    }
+    else if (page == 1)
+    {
+        int y = about_y + 5;
+        for (const char* paragraph : good_to_know)
+            y = wrapped(paragraph, about_text_x, y, about_w - 2 * (about_text_x - about_x), 10, role.text) + 3;
+    }
+    else if (page == 2)
+        about_items(how_it_works, 4);
+    else
+        about_items(libraries, 3);
+    const ui::hint hints[] = { { ui::dpad_left_right, "page" }, { "B", "back" } };
+    footer(hints, 2);
 }
 }
 void draw(const Controller& app)
@@ -1694,6 +1812,9 @@ void draw(const Controller& app)
         break;
     case Screen::settings:
         settings(app);
+        break;
+    case Screen::about:
+        about(app);
         break;
     case Screen::remove_wallet:
         confirmation(app, "Delete wallet?", app.book.wallets[app.wallet_index()].name, "delete");

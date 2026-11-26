@@ -69,6 +69,9 @@ for theme in themes:
     key("B")  # Back to the networks panel
     key("SELECT")  # Settings
     shot(f"{theme}-settings")
+    key("SELECT")  # About, page 1 (with the project link's QR Code)
+    shot(f"{theme}-about")
+    key("B")  # Back to Settings
     key("DOWN")  # Theme (Sort is the first item)
     key("A")  # Next theme, committed to SRAM
     key("B")
@@ -108,6 +111,9 @@ for theme in themes:
         assert len(decoded) == 1 and decoded[0].text == address, (theme, network, decoded)
         colors = {color for _, color in image.crop((122, 27, 234, 139)).getcolors()}
         assert colors == {(0, 0, 0), (255, 255, 255)}, (theme, network, colors)
+for theme in themes:
+    decoded = zxingcpp.read_barcodes(Image.open(OUT / f"{theme}-about.ppm"))
+    assert len(decoded) == 1 and decoded[0].text == "https://github.com/billyadam/AddrBoy", (theme, decoded)
 decoded = zxingcpp.read_barcodes(Image.open(OUT / "saved-qr.ppm"))
 assert len(decoded) == 1 and decoded[0].text == expected[1], decoded
 
@@ -128,4 +134,4 @@ for row, theme in enumerate(themes):
         labels.text((x+4, y+2), theme + " / " + screen, fill="white")
         sheet.paste(Image.open(OUT / f"{theme}-{screen}.ppm").resize((480, 320), Image.Resampling.NEAREST), (x, y+18))
 sheet.save(OUT / "theme-overview.png")
-print("ROM passed: 20 exact QR decodes, pure black/white in every theme, button-driven creation and save/reboot.")
+print("ROM passed: 20 exact QR decodes, the About link QR in every theme, pure black/white in every theme, button-driven creation and save/reboot.")

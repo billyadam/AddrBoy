@@ -13,6 +13,7 @@ another device to scan. Version **0.1.0**.
 - Five optional address slots per wallet: BTC, EVM, SOL, SUI, and APT.
 - Create, edit, and delete wallets; add, replace, or remove individual addresses.
 - Receive screen with the complete case-sensitive address in groups of four.
+- An About section (SELECT in Settings), as in AuthBoy, with the project link as a QR Code.
 - A welcome screen on boot, as in AuthBoy, with the "Book Boy" logo (a handheld drawn as an
   address book) in the theme's colors.
 - Field Guide, Net Link, Pocket LCD, and Phosphor themes, based on local copies of
@@ -51,7 +52,8 @@ embedded in the ROM.
 | Type | Up/Down choose Cold / Hot / Exchange / External; A next; B name |
 | Networks setup | Up/Down select; A add/edit address; B back; START save wallet |
 | Address entry | D-pad select key; A type; B delete; SELECT toggle case; START validate and accept |
-| Settings | Up/Down choose Sort or Theme; A or Left/Right change it; B or START return |
+| Settings | Up/Down choose Sort or Theme; A or Left/Right change it; SELECT About; B or START return |
+| About | Left/Right or L/R turn the 4 pages (About, Good to know, How it works, Libraries); B or SELECT back |
 
 SELECT opens Settings from the wallets and networks panels (as in AuthBoy) and switches
 between the ABC and abc tabs on the keyboards; it is unused elsewhere. The name keyboard

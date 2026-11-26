@@ -4,6 +4,7 @@
 
 namespace addr
 {
+inline constexpr const char* app_version_label = "v0.1.0"; // Settings header and About
 constexpr int max_wallets = 64;
 constexpr int network_count = 5;
 constexpr int address_capacity = 67;

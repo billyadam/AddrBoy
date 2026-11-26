@@ -180,7 +180,8 @@ void Controller::handle(Button b)
     // SELECT opens settings from the home screen (wallets / networks), as in AuthBoy, and switches
     // the keyboard case; it is unused everywhere else.
     bool home_screen = screen == Screen::wallets || screen == Screen::networks;
-    if (b == Button::select && !home_screen && screen != Screen::name && screen != Screen::address)
+    if (b == Button::select && !home_screen && screen != Screen::name && screen != Screen::address
+        && screen != Screen::settings && screen != Screen::about)
         return;
     message = nullptr;
     int delta = b == Button::up || b == Button::left || b == Button::l ? -1 : 1;
@@ -298,7 +299,14 @@ void Controller::handle(Button b)
             screen = return_screen;
             return;
         }
-        // As AuthBoy's settings: Up/Down choose Sort or Theme; A (or Left/Right) changes it.
+        // As AuthBoy's settings: SELECT opens About.
+        if (b == Button::select)
+        {
+            screen = Screen::about;
+            about_page = 0;
+            return;
+        }
+        // Up/Down choose Sort or Theme; A (or Left/Right) changes it.
         if (b == Button::up || b == Button::down)
             settings_item = 1 - settings_item;
         if (b == Button::a || b == Button::left || b == Button::right)
@@ -317,6 +325,17 @@ void Controller::handle(Button b)
             if (int position = position_of(index); index >= 0 && position >= 0)
                 selected = position;
         }
+        return;
+    }
+    if (screen == Screen::about)
+    {
+        // Left/Right (or L/R) turn the pages, stopping at the ends; B or SELECT go back.
+        if ((b == Button::left || b == Button::l) && about_page > 0)
+            --about_page;
+        if ((b == Button::right || b == Button::r) && about_page < about_page_count - 1)
+            ++about_page;
+        if (b == Button::b || b == Button::select)
+            screen = Screen::settings;
         return;
     }
     if (screen == Screen::remove_wallet)

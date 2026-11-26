@@ -389,7 +389,27 @@ void sorting()
     app.press(Button::down);
     app.press(Button::a);
     assert(app.book.theme == Theme::net && app.book.sort == SortOrder::custom);
-    std::puts("Sorting: A-Z / Z-A with ties, custom order, Move, settings, persistence passed");
+    // About (SELECT in Settings): Left/Right and L/R turn the four pages, stopping at the ends;
+    // B or SELECT return to Settings.
+    assert(app.screen == Screen::settings);
+    app.press(Button::select);
+    assert(app.screen == Screen::about && app.about_page == 0);
+    app.press(Button::left);
+    assert(app.about_page == 0);
+    for (int i = 0; i < 5; ++i)
+        app.press(i % 2 ? Button::r : Button::right);
+    assert(app.about_page == Controller::about_page_count - 1);
+    app.press(Button::l);
+    assert(app.about_page == 2);
+    app.press(Button::b);
+    assert(app.screen == Screen::settings);
+    app.press(Button::select);
+    assert(app.about_page == 0);
+    app.press(Button::select);
+    assert(app.screen == Screen::settings);
+    app.press(Button::b);
+    assert(app.screen == Screen::wallets);
+    std::puts("Sorting: A-Z / Z-A with ties, custom order, Move, settings, About, persistence passed");
 }
 // The External type (someone else's wallet): saved, filtered, and chosen like the others.
 void external_type()
