@@ -58,7 +58,8 @@ expected = [
 explorers = [
     ["https://blockstream.info/address/"],
     ["https://etherscan.io/address/", "https://basescan.org/address/",
-     "https://arbiscan.io/address/", "https://robinhoodchain.blockscout.com/address/"],
+     "https://arbiscan.io/address/", "https://bscscan.com/address/",
+     "https://robinhoodchain.blockscout.com/address/"],
     ["https://solscan.io/account/"],
     ["https://suiscan.xyz/mainnet/account/"],
     ["https://explorer.aptoslabs.com/account/"],

@@ -1069,14 +1069,18 @@ void qr_choices(const Controller& app)
     const auto& wallet = app.book.wallets[app.wallet_index()];
     text(wallet.name, 12, 32, role.text, 216);
     rule(10, 44, 220);
+    bool compact = app.network == int(Network::evm);
+    int row_height = compact ? 14 : 17;
+    int pitch = compact ? 15 : 18;
     Row previous = Row::selected;
     for (int i = 0; i < qr_choice_count(Network(app.network)); ++i)
     {
-        int y = 48 + i * 18;
+        int y = 48 + i * pitch;
         Row state = i == app.qr_choice ? Row::selected : Row::normal;
         separator(10, y - 1, 220, previous, state);
-        RowStyle style = row(10, y, 220, 17, state, i);
-        text(qr_choice_label(Network(app.network), i), style.x, y + 4, style.text, 230 - style.x);
+        RowStyle style = row(10, y, 220, row_height, state, i);
+        text(qr_choice_label(Network(app.network), i), style.x, y + (row_height - 8) / 2,
+            style.text, 230 - style.x);
         previous = state;
     }
     const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "show QR" }, { "B", "back" } };

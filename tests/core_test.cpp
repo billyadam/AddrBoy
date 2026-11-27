@@ -119,10 +119,11 @@ Wallet wallet(const char* name = "Main wallet")
 void explorer_links()
 {
     Wallet w = wallet();
-    const char* expected[][5] = {
+    const char* expected[][6] = {
         { "", "https://blockstream.info/address/" },
         { "", "https://etherscan.io/address/", "https://basescan.org/address/",
-            "https://arbiscan.io/address/", "https://robinhoodchain.blockscout.com/address/" },
+            "https://arbiscan.io/address/", "https://bscscan.com/address/",
+            "https://robinhoodchain.blockscout.com/address/" },
         { "", "https://solscan.io/account/" },
         { "", "https://suiscan.xyz/mainnet/account/" },
         { "", "https://explorer.aptoslabs.com/account/" },
@@ -130,7 +131,7 @@ void explorer_links()
     for (int n = 0; n < network_count; ++n)
     {
         int count = qr_choice_count(Network(n));
-        assert(count == (n == 1 ? 5 : 2));
+        assert(count == (n == 1 ? 6 : 2));
         assert(!qr_choice_label(Network(n), count));
         for (int choice = 0; choice < count; ++choice)
         {
@@ -149,7 +150,7 @@ void explorer_links()
         }
     }
     char result[qr_payload_capacity];
-    assert(!qr_payload(Network::evm, 5, w.addresses[1], result));
+    assert(!qr_payload(Network::evm, 6, w.addresses[1], result));
     assert(!qr_payload(Network::evm, 1, "", result));
 }
 void saves()
@@ -304,16 +305,16 @@ void controls()
     app.press(Button::down);
     assert(app.network == 1);
     app.press(Button::a);
-    assert(app.screen == Screen::qr_choices && qr_choice_count(Network(app.network)) == 5);
-    for (int i = 0; i < 4; ++i)
+    assert(app.screen == Screen::qr_choices && qr_choice_count(Network(app.network)) == 6);
+    for (int i = 0; i < 5; ++i)
         app.press(Button::down);
-    assert(app.qr_choice == 4);
+    assert(app.qr_choice == 5);
     app.press(Button::a);
     assert(app.screen == Screen::receive);
     app.press(Button::right);
     assert(app.network == 1); // Explorer QR stays on its chosen chain.
     app.press(Button::b);
-    assert(app.screen == Screen::qr_choices && app.qr_choice == 4);
+    assert(app.screen == Screen::qr_choices && app.qr_choice == 5);
     app.press(Button::b);
     app.press(Button::up);
     assert(app.screen == Screen::networks && app.network == 0);
