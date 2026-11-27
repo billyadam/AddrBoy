@@ -15,13 +15,15 @@
 //     "wallets": [                                          up to 64, in display order
 //       { "name": "Main wallet",                            1-20 printable ASCII characters
 //         "type": "cold" | "hot" | "exchange" | "external",
-//         "btc": "...", "evm": "...", "sol": "...", "sui": "...", "apt": "..." }   each optional
+//         "btc": "...", "evm": "...", "sol": "...", "sui": "...", "apt": "...",
+//         "checked_on": { "btc": "2026-11-28" } }        dates optional, one per address
 //     ]
 //   }
 
 #include "bn_sram.h"
 #include "storage.h"
 #include "validation.h"
+#include "dates.h"
 
 #include <cstdio>
 #include <cstring>
@@ -248,6 +250,19 @@ int choice(const Value* v, std::initializer_list<const char*> choices)
     }
     return -1;
 }
+uint16_t parse_day(const Value& value)
+{
+    const std::string& text = value.text;
+    if (value.kind != Value::string || text.size() != 10 || text[4] != '-' || text[7] != '-')
+        return 0;
+    for (int i : { 0, 1, 2, 3, 5, 6, 8, 9 })
+        if (text[i] < '0' || text[i] > '9')
+            return 0;
+    int year = (text[0] - '0') * 1000 + (text[1] - '0') * 100 + (text[2] - '0') * 10 + text[3] - '0';
+    int month = (text[5] - '0') * 10 + text[6] - '0';
+    int day = (text[8] - '0') * 10 + text[9] - '0';
+    return day_from_ymd(year, month, day);
+}
 }
 
 int main(int argc, char** argv)
@@ -330,7 +345,7 @@ int main(int argc, char** argv)
         const Value* name = member(entry, "name");
         if (name && name->kind == Value::string)
             where += " (\"" + name->text + "\")";
-        if (!only_keys(entry, { "name", "type", "btc", "evm", "sol", "sui", "apt" }, where))
+        if (!only_keys(entry, { "name", "type", "btc", "evm", "sol", "sui", "apt", "checked_on" }, where))
         {
             ok = false;
             continue;
@@ -384,6 +399,30 @@ int main(int argc, char** argv)
                 std::fprintf(stderr, "%s: %s: %s\n", where.c_str(), keys[n], error);
                 ok = false;
             }
+        }
+        if (const Value* dates = member(entry, "checked_on"))
+        {
+            if (dates->kind != Value::object || !only_keys(*dates, { "btc", "evm", "sol", "sui", "apt" }, where + ": checked_on"))
+            {
+                if (dates->kind != Value::object)
+                    std::fprintf(stderr, "%s: checked_on must be an object\n", where.c_str());
+                ok = false;
+            }
+            else
+                for (int n = 0; n < network_count; ++n)
+                    if (const Value* date = member(*dates, keys[n]))
+                    {
+                        uint16_t day = parse_day(*date);
+                        if (!w.addresses[n][0] || !day)
+                        {
+                            std::fprintf(stderr,
+                                "%s: checked_on.%s needs an address and YYYY-MM-DD date (2000-2099)\n",
+                                where.c_str(), keys[n]);
+                            ok = false;
+                        }
+                        else
+                            w.stored_day[n] = w.checked_day[n] = day;
+                    }
         }
         if (ok && !valid_wallet(w))
         {

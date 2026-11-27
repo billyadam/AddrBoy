@@ -7,6 +7,7 @@ enum class LoadResult
 {
     ready,
     empty,
+    incompatible,
     damaged
 };
 // 65 record slots: 64 live wallets plus one spare for copy-on-write edits.

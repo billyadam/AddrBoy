@@ -5,7 +5,9 @@ namespace addr
 {
 void Controller::boot()
 {
-    damaged_save = storage.load(book) == LoadResult::damaged;
+    LoadResult result = storage.load(book);
+    damaged_save = result == LoadResult::damaged;
+    incompatible_save = result == LoadResult::incompatible;
     screen = Screen::welcome;
     refresh_order();
 }
@@ -169,19 +171,19 @@ void Controller::press(Button b)
 }
 void Controller::handle(Button b)
 {
-    if (screen == Screen::damaged)
+    if (screen == Screen::damaged || screen == Screen::incompatible)
         return;
     if (screen == Screen::welcome)
     {
         if (b == Button::a || b == Button::start)
-            screen = damaged_save ? Screen::damaged : Screen::wallets;
+            screen = damaged_save ? Screen::damaged : incompatible_save ? Screen::incompatible : Screen::wallets;
         return;
     }
     // SELECT opens settings from the home screen (wallets / networks), as in AuthBoy, and switches
     // the keyboard case; it is unused everywhere else.
     bool home_screen = screen == Screen::wallets || screen == Screen::networks;
     if (b == Button::select && !home_screen && screen != Screen::name && screen != Screen::address
-        && screen != Screen::settings && screen != Screen::about)
+        && screen != Screen::settings && screen != Screen::about && screen != Screen::qr_choices)
         return;
     message = nullptr;
     int delta = b == Button::up || b == Button::left || b == Button::l ? -1 : 1;
@@ -204,10 +206,47 @@ void Controller::handle(Button b)
     {
         if (b == Button::up || b == Button::down)
             qr_choice = (qr_choice + delta + qr_choice_count(Network(network))) % qr_choice_count(Network(network));
+        if (b == Button::select && wallet_index() >= 0
+            && book.wallets[wallet_index()].type == WalletType::exchange)
+        {
+            if (!today)
+                message = "RTC date unavailable";
+            else if (book.wallets[wallet_index()].stored_day[network] > today)
+                message = "Check RTC date";
+            else
+                screen = Screen::confirm_checked;
+        }
         if (b == Button::a)
             screen = Screen::receive;
         if (b == Button::b)
             screen = Screen::networks;
+        return;
+    }
+    if (screen == Screen::confirm_checked)
+    {
+        if (b == Button::b)
+            screen = Screen::qr_choices;
+        if (b == Button::a)
+        {
+            int index = wallet_index();
+            if (index < 0 || !today || book.wallets[index].stored_day[network] > today)
+            {
+                screen = Screen::qr_choices;
+                message = "Check RTC date";
+            }
+            else
+            {
+                Wallet checked = book.wallets[index];
+                checked.checked_day[network] = today;
+                if (storage.put(book, index, checked))
+                {
+                    screen = Screen::qr_choices;
+                    message = "Checked date saved";
+                }
+                else
+                    message = "Save failed; try again";
+            }
+        }
         return;
     }
     if (screen == Screen::wallets || screen == Screen::networks || screen == Screen::receive)
@@ -385,6 +424,8 @@ void Controller::handle(Button b)
         if (b == Button::a)
         {
             draft.addresses[setup_network][0] = 0;
+            draft.stored_day[setup_network] = 0;
+            draft.checked_day[setup_network] = 0;
             screen = Screen::setup;
         }
         return;
@@ -504,6 +545,11 @@ void Controller::handle(Button b)
                     message = error;
                 else
                 {
+                    if (std::strcmp(draft.addresses[setup_network], result))
+                    {
+                        draft.stored_day[setup_network] = today;
+                        draft.checked_day[setup_network] = today;
+                    }
                     std::memcpy(draft.addresses[setup_network], result, sizeof(result));
                     screen = Screen::setup;
                 }

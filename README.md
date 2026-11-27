@@ -21,7 +21,10 @@ another device to scan. Version **0.1.0**.
   address book) in the theme's colors.
 - Field Guide, Net Link, Pocket LCD, and Phosphor themes, based on local copies of
   AuthBoy's renderer, fonts, and palettes.
-- Local SRAM saves with checksums and copy-on-write wallet updates. No RTC needed.
+- Local SRAM saves with checksums and copy-on-write wallet updates. An RTC supplies
+  address dates and the exchange deposit warning.
+- The Choose QR screen shows the selected address's stored and checked dates. Exchange
+  addresses checked more than 30 days ago prompt a recheck without blocking QR access.
 
 AddrBoy stores public receiving addresses. It does not hold private keys, sign
 transactions, connect to a blockchain, or determine a balance. The EVM slot is a
@@ -40,6 +43,8 @@ The output is `AddrBoy.gba`. Open it in a GBA emulator or on compatible hardware
 with SRAM saves. Keep the emulator's `.sav` file with the ROM to retain wallets.
 The default build starts with an empty address book; test wallets are never
 embedded in the ROM.
+For RetroArch gpSP, enable **RTC support** and set **RTC Time Source** to **System Clock**.
+The default deterministic source does not count time while the emulator is closed.
 
 ## Controls
 
@@ -48,7 +53,8 @@ embedded in the ROM.
 | Welcome | A or START continue |
 | Wallets | Up/Down select; A focus networks; L/R cycle filter; START menu; SELECT settings |
 | Networks | Up/Down select; A choose QR; B wallets; L/R filter and return to wallets; START menu; SELECT settings |
-| QR choices | Up/Down choose Address or a network explorer; A show QR; B networks |
+| QR choices | Up/Down choose Address or a network explorer; A show QR; B networks; SELECT confirm an exchange address was checked |
+| Confirm checked | A save today's RTC date as last checked; B cancel |
 | Address QR | Left/Right cycle configured networks, wrapping; B QR choices; START menu |
 | Explorer QR | B QR choices; START menu |
 | Menu | New wallet / Edit wallet / Networks / Move (custom order only) / Delete: Up/Down select; A choose; B or START close |
@@ -60,8 +66,9 @@ embedded in the ROM.
 | Settings | Up/Down choose Sort or Theme; A or Left/Right change it; SELECT About; B or START return |
 | About | Left/Right or L/R turn the 4 pages (About, Good to know, How it works, Libraries); B or SELECT back |
 
-SELECT opens Settings from the wallets and networks panels (as in AuthBoy) and switches
-between the ABC and abc tabs on the keyboards; it is unused elsewhere. The name keyboard
+SELECT opens Settings from the wallets and networks panels (as in AuthBoy), switches
+between the ABC and abc tabs on the keyboards, and starts the exchange address check confirmation
+on Choose QR. The name keyboard
 follows AuthBoy's: its keys end in `- . _ '`, R types a space (not as the first character),
 and L opens the discard confirmation, as B does on an empty name field. The home screen's
 right panel and the network setup list show each address's last four characters (`..18fd`);
@@ -72,6 +79,17 @@ To remove an existing address, erase the field and press START, then confirm.
 To discard changes made through the menu's Networks action, press B from network
 setup and confirm. Address edits remain in the draft until START saves the wallet
 from network setup. Wallets with zero addresses are allowed.
+
+## Address dates and exchange reminder
+
+Each address has a stored date and a last checked date. Adding or replacing it on the GBA
+sets both dates from the RTC; editing it without changing the address preserves them.
+After verifying an exchange deposit address and its network with the exchange, press SELECT
+on Choose QR, then A to save the new checked date. If more than 30 calendar days have
+passed since that check, Choose QR displays a reminder to check with the exchange again.
+The reminder does not disable any address, QR, or editing action. If the RTC or check date
+is unavailable, the screen says so and asks for a recheck instead of reporting a false age.
+An incorrect RTC date can produce an incorrect age, so check the date on your device.
 
 ## Address validation and QR behavior
 
@@ -110,7 +128,9 @@ Validation references: [EIP-55](https://eips.ethereum.org/EIPS/eip-55),
 Public addresses are saved unencrypted in 32 KB SRAM. Two CRC32-protected
 directories record wallet order, category filter, theme, sort order, and a generation number.
 65 checksummed record slots provide space for 64 wallets and one spare slot. This is
-save format 3 (20-character names, sort order); saves from earlier builds are not read.
+save format 4, with per-address dates. Format 3 saves are incompatible and are left
+untouched with an explanatory screen. Back up an old save and create a new one before
+using this ROM.
 A Move step swaps two directory entries in one commit, so no record is rewritten.
 An edit writes and verifies the spare record before committing the new directory.
 Deletion commits a new directory without moving the remaining records.
@@ -130,7 +150,7 @@ written if any entry is invalid.
 
 ```sh
 make -C tools                                   # builds tools/build/make_save
-tools/build/make_save my-wallets.json AddrBoy.sav
+tools/build/make_save tools/build/my-wallets.json AddrBoy.sav
 make -C tools check                             # example save + a refused bad file
 ```
 
@@ -138,7 +158,10 @@ See `tools/wallets.example.json`. `theme` (`field`, `net`, `lcd`, `phosphor`), `
 (`all`, `cold`, `hot`, `exchange`, `external`), and `sort` (`a-z`, the default, `z-a`, or
 `custom` to keep the JSON's order) are optional. Each wallet has a `name` (1-20 printable
 ASCII characters), a `type` (`cold`, `hot`, `exchange`, `external`), and any of `btc`,
-`evm`, `sol`, `sui`, `apt`. APT addresses are padded to 64 digits, as on the device. Unknown
+`evm`, `sol`, `sui`, `apt`. Add `checked_on` with a `YYYY-MM-DD` date for each address you
+have verified, for example `"checked_on": {"btc": "2026-11-28"}`. This initializes both
+dates for that address. An omitted date is shown as unknown; the generator never stamps
+the current date automatically. APT addresses are padded to 64 digits, as on the device. Unknown
 keys are errors, so a typo such as `eth` is not silently dropped. Put the `.sav` next to the
 ROM with the same base name (`AddrBoy.sav`) for emulators, or copy it to the cartridge's
 save.

@@ -46,6 +46,8 @@ struct Wallet
     char name[name_limit + 1] = { };
     WalletType type = WalletType::cold;
     char addresses[network_count][address_capacity] = { };
+    uint16_t stored_day[network_count] = { };
+    uint16_t checked_day[network_count] = { };
 };
 struct Book
 {

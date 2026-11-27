@@ -1,4 +1,5 @@
 #include "validation.h"
+#include "dates.h"
 #include <cstring>
 #include <initializer_list>
 
@@ -302,6 +303,10 @@ bool valid_wallet(const Wallet& wallet)
         if (!std::memchr(wallet.addresses[i], 0, address_capacity))
             return false;
         if (wallet.addresses[i][0] && validate_address(Network(i), wallet.addresses[i], canonical))
+            return false;
+        if (wallet.stored_day[i] > last_day || wallet.checked_day[i] > last_day
+            || (!wallet.addresses[i][0] && (wallet.stored_day[i] || wallet.checked_day[i]))
+            || (wallet.stored_day[i] && wallet.checked_day[i] && wallet.checked_day[i] < wallet.stored_day[i]))
             return false;
     }
     return true;

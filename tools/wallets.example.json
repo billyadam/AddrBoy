@@ -21,7 +21,8 @@
     {
       "name": "Exchange deposit",
       "type": "exchange",
-      "btc": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0"
+      "btc": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
+      "checked_on": { "btc": "2026-11-28" }
     },
     {
       "name": "Alice",

@@ -10,6 +10,7 @@ enum class Screen
     wallets,
     networks,
     qr_choices,
+    confirm_checked,
     receive,
     menu,
     name,
@@ -21,7 +22,8 @@ enum class Screen
     remove_wallet,
     discard,
     remove_address,
-    damaged
+    damaged,
+    incompatible
 };
 enum class Button
 {
@@ -53,10 +55,12 @@ public:
     Screen screen = Screen::wallets, return_screen = Screen::wallets, discard_return = Screen::name;
     int selected = 0, network = 0, menu = 0, setup_network = 0, key = 0;
     int qr_choice = 0;
+    uint16_t today = 0; // 0 when the RTC is absent or has an invalid date
     int edit_index = -1;
     bool lowercase = false, networks_only = false;
     bool moving = false;    // custom order: Up/Down move the selected wallet
     bool damaged_save = false; // the welcome screen leads to the recovery screen
+    bool incompatible_save = false;
     int settings_item = 0;  // 0 Sort, 1 Theme
     int about_page = 0;     // 0 About, 1 Good to know, 2 How it works, 3 Libraries
     int order[max_wallets] = { }; // display order: indices into book.wallets

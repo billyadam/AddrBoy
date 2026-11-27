@@ -9,17 +9,16 @@ namespace
 {
 constexpr uint32_t magic = 0x52444441; // ADDR, little endian
 constexpr int records_offset = 256;
-// Format 3: 20-character names (357-byte wallets, 364-byte records) and the sort order in the
-// directory. Earlier formats are not read.
-constexpr uint8_t format_version = 3;
+// Format 4 stores per-network dates in each wallet. Earlier formats are not read.
+constexpr uint8_t format_version = 4;
 struct Record
 {
     Wallet wallet;
-    uint8_t reserved[3];
+    uint8_t reserved[2];
     uint32_t checksum;
 };
-static_assert(sizeof(Wallet) == 357);
-static_assert(sizeof(Record) == 364);
+static_assert(sizeof(Wallet) == 378);
+static_assert(sizeof(Record) == 384);
 static_assert(records_offset + 65 * sizeof(Record) <= bn::sram::size());
 uint32_t crc(const void* data, unsigned size)
 {
@@ -67,6 +66,15 @@ LoadResult Storage::load(Book& book)
     bool va = read_directory(0, a), vb = read_directory(1, b);
     if (!va && !vb)
     {
+        // A v3 directory has the same layout; report it clearly without changing any SRAM bytes.
+        for (int i = 0; i < 2; ++i)
+        {
+            Directory old;
+            bn::sram::read_offset(old, i * 128);
+            if (old.magic == magic && old.version == 3
+                && old.checksum == crc(&old, offsetof(Directory, checksum)))
+                return LoadResult::incompatible;
+        }
         // Never silently overwrite an unfamiliar or damaged save.
         bool zero = true, erased = true;
         for (int offset = 0; offset < bn::sram::size(); offset += 128)

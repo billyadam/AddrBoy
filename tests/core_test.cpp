@@ -1,6 +1,7 @@
 #include "bn_sram.h"
 #include "controller.h"
 #include "validation.h"
+#include "dates.h"
 #include "qrcodegen.h"
 #include <cassert>
 #include <cstdio>
@@ -153,6 +154,81 @@ void explorer_links()
     assert(!qr_payload(Network::evm, 6, w.addresses[1], result));
     assert(!qr_payload(Network::evm, 1, "", result));
 }
+void dates_and_checks()
+{
+    assert(day_from_ymd(2000, 1, 1) == 1);
+    assert(day_from_ymd(2024, 2, 29));
+    assert(!day_from_ymd(2025, 2, 29));
+    assert(!day_from_ymd(2100, 1, 1));
+    int year, month, day;
+    ymd_from_day(day_from_ymd(2099, 12, 31), year, month, day);
+    assert(year == 2099 && month == 12 && day == 31);
+    uint16_t stored = day_from_ymd(2026, 10, 28);
+    assert(age_days(day_from_ymd(2026, 11, 27), stored) == 30);
+    assert(age_days(day_from_ymd(2026, 11, 28), stored) == 31);
+    assert(age_days(0, stored) == -1 && age_days(stored - 1, stored) == -1);
+
+    std::memset(bn::sram::data, 0, bn::sram::size());
+    Controller app;
+    app.today = day_from_ymd(2026, 11, 28);
+    app.boot();
+    app.press(Button::a);
+    Wallet exchange = wallet("Deposit");
+    exchange.type = WalletType::exchange;
+    exchange.stored_day[0] = exchange.checked_day[0] = stored;
+    assert(app.storage.put(app.book, 0, exchange));
+    app.press(Button::a);
+    app.press(Button::a);
+    assert(app.screen == Screen::qr_choices && app.network == 0);
+    app.press(Button::select);
+    assert(app.screen == Screen::confirm_checked);
+    app.press(Button::b);
+    assert(app.screen == Screen::qr_choices && app.book.wallets[0].checked_day[0] == stored);
+    app.press(Button::select);
+    app.press(Button::a);
+    assert(app.screen == Screen::qr_choices && app.book.wallets[0].stored_day[0] == stored
+        && app.book.wallets[0].checked_day[0] == app.today);
+    Book reloaded;
+    Storage reboot;
+    assert(reboot.load(reloaded) == LoadResult::ready && reloaded.wallets[0].checked_day[0] == app.today);
+    app.today = 0;
+    app.press(Button::select);
+    assert(app.screen == Screen::qr_choices && app.message);
+    app.press(Button::a);
+    assert(app.screen == Screen::receive); // RTC failure never blocks QR.
+    app.today = day_from_ymd(2026, 12, 1);
+    app.press(Button::b);
+    app.press(Button::b);
+    app.press(Button::start);
+    app.press(Button::down);
+    app.press(Button::down);
+    app.press(Button::a);
+    assert(app.screen == Screen::setup);
+    app.press(Button::a);
+    assert(app.screen == Screen::address);
+    app.press(Button::start);
+    assert(app.screen == Screen::setup && app.draft.stored_day[0] == stored
+        && app.draft.checked_day[0] == day_from_ymd(2026, 11, 28));
+    app.press(Button::a);
+    std::strcpy(app.input, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+    app.press(Button::start);
+    assert(app.screen == Screen::setup && app.draft.stored_day[0] == app.today
+        && app.draft.checked_day[0] == app.today);
+    app.press(Button::start);
+    assert(app.book.wallets[0].stored_day[0] == app.today);
+    std::puts("Dates: leap years, 30-day boundary, check action, RTC fallback passed");
+}
+uint32_t directory_crc(const uint8_t* data, int size)
+{
+    uint32_t value = ~0u;
+    for (int i = 0; i < size; ++i)
+    {
+        value ^= data[i];
+        for (int bit = 0; bit < 8; ++bit)
+            value = (value >> 1) ^ (0xedb88320u & (0u - (value & 1u)));
+    }
+    return ~value;
+}
 void saves()
 {
     std::memset(bn::sram::data, 255, bn::sram::size());
@@ -178,7 +254,7 @@ void saves()
     // Power loss after every possible byte of a full-capacity edit.
     std::vector<unsigned char> snapshot(bn::sram::data, bn::sram::data + bn::sram::size());
     Wallet edited = wallet("Edited");
-    for (int cutoff = 0; cutoff <= 448; ++cutoff)
+    for (int cutoff = 0; cutoff <= 480; ++cutoff)
     {
         std::memcpy(bn::sram::data, snapshot.data(), snapshot.size());
         Storage current;
@@ -224,7 +300,24 @@ void saves()
         Book reread;
         assert(again.load(reread) == LoadResult::ready && !std::strcmp(reread.wallets[0].name, longest.name));
     }
-    // A format 2 save (no sort order) is not read, and is left untouched.
+    // A valid old-format directory is identified without overwriting the save.
+    {
+        std::memset(bn::sram::data, 0, bn::sram::size());
+        Storage fresh;
+        Book empty_book;
+        assert(fresh.load(empty_book) == LoadResult::empty && fresh.put(empty_book, 0, wallet()));
+        for (int offset : { 0, 128 })
+        {
+            bn::sram::data[offset + 8] = 3;
+            uint32_t checksum = directory_crc(bn::sram::data + offset, 80);
+            std::memcpy(bn::sram::data + offset + 80, &checksum, 4);
+        }
+        std::vector<unsigned char> old(bn::sram::data, bn::sram::data + bn::sram::size());
+        Storage later;
+        assert(later.load(empty_book) == LoadResult::incompatible);
+        assert(!std::memcmp(old.data(), bn::sram::data, old.size()));
+    }
+    // A corrupt format 2 save is not read, and is left untouched.
     {
         std::memset(bn::sram::data, 0, bn::sram::size());
         Storage fresh;
@@ -513,6 +606,7 @@ int main(int argc, char** argv)
 {
     validators();
     explorer_links();
+    dates_and_checks();
     saves();
     controls();
     sorting();

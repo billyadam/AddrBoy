@@ -1,6 +1,6 @@
 CXX ?= g++
 CXXFLAGS := -std=c++20 -O2 -g -Wall -Wextra -Werror -I../include -Istubs -I../third_party/qrcodegen
-SOURCES := core_test.cpp ../src/controller.cpp ../src/storage.cpp ../src/validation.cpp ../src/explorers.cpp
+SOURCES := core_test.cpp ../src/controller.cpp ../src/storage.cpp ../src/validation.cpp ../src/explorers.cpp ../src/dates.cpp
 
 run: build/core_test
 	./build/core_test

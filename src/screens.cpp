@@ -3,6 +3,7 @@
 #include "qrcodegen.h"
 #include "ui.h"
 #include "validation.h"
+#include "dates.h"
 #include "logo_bookboy.h"
 #include <cstdio>
 #include <cstring>
@@ -1065,10 +1066,11 @@ void qr_choices(const Controller& app)
 {
     header("Choose QR");
     header_counter(tickers[app.network]);
-    panel(4, 25, 232, 116);
+    panel(4, 26, 128, 114);
+    panel(136, 26, 100, 114);
     const auto& wallet = app.book.wallets[app.wallet_index()];
-    text(wallet.name, 12, 32, role.text, 216);
-    rule(10, 44, 220);
+    text(wallet.name, 10, 32, role.text, 116);
+    rule(10, 44, 116);
     bool compact = app.network == int(Network::evm);
     int row_height = compact ? 14 : 17;
     int pitch = compact ? 15 : 18;
@@ -1077,14 +1079,59 @@ void qr_choices(const Controller& app)
     {
         int y = 48 + i * pitch;
         Row state = i == app.qr_choice ? Row::selected : Row::normal;
-        separator(10, y - 1, 220, previous, state);
-        RowStyle style = row(10, y, 220, row_height, state, i);
+        separator(8, y - 1, 120, previous, state);
+        RowStyle style = row(8, y, 120, row_height, state, i);
         text(qr_choice_label(Network(app.network), i), style.x, y + (row_height - 8) / 2,
-            style.text, 230 - style.x);
+            style.text, 126 - style.x);
         previous = state;
     }
-    const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "show QR" }, { "B", "back" } };
-    footer(hints, 3);
+    text("DETAILS", 142, 32, role.dim, 88, font::digits);
+    rule(142, 44, 88);
+    text(type_names[int(wallet.type)], 142, 48, role.text, 88);
+    auto date_text = [](uint16_t value, char out[12]) {
+        int year, month, day;
+        ymd_from_day(value, year, month, day);
+        if (year)
+            std::snprintf(out, 12, "%02d/%02d/%02d", day, month, year % 100);
+        else
+            std::strcpy(out, "unknown");
+    };
+    char date[12];
+    text("STORED", 142, 61, role.dim, 88, font::digits);
+    date_text(wallet.stored_day[app.network], date);
+    text(date, 142, 71, role.text, 88);
+    text("CHECKED", 142, 83, role.dim, 88, font::digits);
+    date_text(wallet.checked_day[app.network], date);
+    text(date, 142, 93, role.text, 88);
+    if (wallet.type == WalletType::exchange)
+    {
+        int age = age_days(app.today, wallet.checked_day[app.network]);
+        if (age < 0)
+        {
+            text(app.today ? "DATE UNKNOWN" : "RTC UNAVAILABLE", 142, 109, role.danger, 88);
+            text("Check exchange", 142, 121, role.danger, 88);
+        }
+        else if (age > 30)
+        {
+            text("RECHECK!", 142, 109, role.danger, 88);
+            text("with exchange", 142, 121, role.danger, 88);
+        }
+        else
+        {
+            char age_text[24];
+            std::snprintf(age_text, sizeof(age_text), "%d days ago", age);
+            text(age_text, 142, 111, role.dim, 88);
+        }
+        const ui::hint hints[] = { { "A", "QR" }, { "B", "back" }, { "SEL", "checked" } };
+        footer(hints, 3, app.message);
+    }
+    else
+    {
+        text("QR OPENS", 142, 109, role.dim, 88, font::digits);
+        text(qr_choice_label(Network(app.network), app.qr_choice), 142, 121, role.text, 88);
+        const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "QR" }, { "B", "back" } };
+        footer(hints, 3, app.message);
+    }
 }
 uint8_t qr[qrcodegen_BUFFER_LEN_FOR_VERSION(5)];
 char qr_cached_payload[qr_payload_capacity] = { };
@@ -1840,6 +1887,9 @@ void draw(const Controller& app)
     case Screen::qr_choices:
         qr_choices(app);
         break;
+    case Screen::confirm_checked:
+        confirmation(app, "Checked with exchange?", "Verify address and network first.", "mark today");
+        break;
     case Screen::receive:
         receive(app);
         break;
@@ -1870,6 +1920,14 @@ void draw(const Controller& app)
         break;
     case Screen::remove_address:
         confirmation(app, "Remove this address?", network_names[app.setup_network], "remove");
+        break;
+    case Screen::incompatible:
+        header("Old save format");
+        panel(4, 39, 232, 92);
+        text("This ROM cannot read that save.", 12, 51, role.danger, 216);
+        text("No data has been overwritten.", 12, 69, role.text, 216);
+        text("Back up the old .sav, then use", 12, 88, role.dim, 216);
+        text("a fresh save or make_save.", 12, 104, role.dim, 216);
         break;
     default:
     case Screen::damaged:
