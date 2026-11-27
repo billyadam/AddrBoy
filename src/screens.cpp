@@ -1122,14 +1122,14 @@ void qr_choices(const Controller& app)
             std::snprintf(age_text, sizeof(age_text), "%d days ago", age);
             text(age_text, 142, 111, role.dim, 88);
         }
-        const ui::hint hints[] = { { "A", "QR" }, { "B", "back" }, { "SEL", "checked" } };
+        const ui::hint hints[] = { { "A", "show" }, { "B", "back" }, { "SEL", "checked" } };
         footer(hints, 3, app.message);
     }
     else
     {
         text("QR OPENS", 142, 109, role.dim, 88, font::digits);
         text(qr_choice_label(Network(app.network), app.qr_choice), 142, 121, role.text, 88);
-        const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "QR" }, { "B", "back" } };
+        const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "show" }, { "B", "back" } };
         footer(hints, 3, app.message);
     }
 }
@@ -1233,12 +1233,12 @@ void receive(const Controller& app)
         text("QR unavailable", qr_x + 7, 80, ui::qr_dark, qr_size - 12);
     if (app.qr_choice)
     {
-        const ui::hint hints[] = { { "B", "QR options" }, { "STA", "menu" } };
+        const ui::hint hints[] = { { "B", "back" }, { "STA", "menu" } };
         footer(hints, 2, app.message);
     }
     else
     {
-        const ui::hint hints[] = { { ui::dpad_left_right, "network" }, { "B", "QR options" }, { "STA", "menu" } };
+        const ui::hint hints[] = { { ui::dpad_left_right, "network" }, { "B", "back" }, { "STA", "menu" } };
         footer(hints, 3, app.message);
     }
 }
