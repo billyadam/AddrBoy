@@ -6,24 +6,24 @@ namespace
 {
 constexpr const char* labels[][6] = {
     { "Address", "Blockstream" },
-    { "Address", "Etherscan", "Basescan", "Arbiscan", "BscScan", "Robinhood Chain" },
-    { "Address", "Solscan" },
-    { "Address", "Suiscan" },
+    { "Address", "Etherscan", "Basescan", "Arbiscan", "Robinhood Chain", "BscScan" },
+    { "Address", "Solscan", "Solana Explorer" },
+    { "Address", "Suiscan", "SuiVision" },
     { "Address", "Aptos Explorer" },
 };
 constexpr const char* prefixes[][6] = {
     { "", "https://blockstream.info/address/" },
     { "", "https://etherscan.io/address/", "https://basescan.org/address/",
-        "https://arbiscan.io/address/", "https://bscscan.com/address/",
-        "https://robinhoodchain.blockscout.com/address/" },
-    { "", "https://solscan.io/account/" },
-    { "", "https://suiscan.xyz/mainnet/account/" },
+        "https://arbiscan.io/address/", "https://robinhoodchain.blockscout.com/address/",
+        "https://bscscan.com/address/" },
+    { "", "https://solscan.io/account/", "https://explorer.solana.com/address/" },
+    { "", "https://suiscan.xyz/mainnet/account/", "https://suivision.xyz/account/" },
     { "", "https://explorer.aptoslabs.com/account/" },
 };
 }
 int qr_choice_count(Network network)
 {
-    return network == Network::evm ? 6 : 2;
+    return network == Network::evm ? 6 : network == Network::sol || network == Network::sui ? 3 : 2;
 }
 const char* qr_choice_label(Network network, int choice)
 {

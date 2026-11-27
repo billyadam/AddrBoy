@@ -122,16 +122,16 @@ void explorer_links()
     const char* expected[][6] = {
         { "", "https://blockstream.info/address/" },
         { "", "https://etherscan.io/address/", "https://basescan.org/address/",
-            "https://arbiscan.io/address/", "https://bscscan.com/address/",
-            "https://robinhoodchain.blockscout.com/address/" },
-        { "", "https://solscan.io/account/" },
-        { "", "https://suiscan.xyz/mainnet/account/" },
+            "https://arbiscan.io/address/", "https://robinhoodchain.blockscout.com/address/",
+            "https://bscscan.com/address/" },
+        { "", "https://solscan.io/account/", "https://explorer.solana.com/address/" },
+        { "", "https://suiscan.xyz/mainnet/account/", "https://suivision.xyz/account/" },
         { "", "https://explorer.aptoslabs.com/account/" },
     };
     for (int n = 0; n < network_count; ++n)
     {
         int count = qr_choice_count(Network(n));
-        assert(count == (n == 1 ? 6 : 2));
+        assert(count == (n == 1 ? 6 : n == 2 || n == 3 ? 3 : 2));
         assert(!qr_choice_label(Network(n), count));
         for (int choice = 0; choice < count; ++choice)
         {

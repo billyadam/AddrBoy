@@ -13,8 +13,9 @@ another device to scan. Version **0.1.0**.
 - Five optional address slots per wallet: BTC, EVM, SOL, SUI, and APT.
 - Create, edit, and delete wallets; add, replace, or remove individual addresses.
 - Receive screen with the complete case-sensitive address in groups of four.
-- QR links to a mainnet explorer for each network: Blockstream, Solscan, Suiscan, Aptos Explorer,
-  and Etherscan, Basescan, Arbiscan, BscScan, or Robinhood Chain for EVM.
+- QR links to a mainnet explorer for each network: Blockstream, Solscan, Solana Explorer,
+  Suiscan, SuiVision, Aptos Explorer,
+  and Etherscan, Basescan, Arbiscan, Robinhood Chain, or BscScan for EVM.
 - An About section (SELECT in Settings), as in AuthBoy, with the project link as a QR Code.
 - A welcome screen on boot, as in AuthBoy, with the "Book Boy" logo (a handheld drawn as an
   address book) in the theme's colors.

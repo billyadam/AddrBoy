@@ -58,10 +58,10 @@ expected = [
 explorers = [
     ["https://blockstream.info/address/"],
     ["https://etherscan.io/address/", "https://basescan.org/address/",
-     "https://arbiscan.io/address/", "https://bscscan.com/address/",
-     "https://robinhoodchain.blockscout.com/address/"],
-    ["https://solscan.io/account/"],
-    ["https://suiscan.xyz/mainnet/account/"],
+     "https://arbiscan.io/address/", "https://robinhoodchain.blockscout.com/address/",
+     "https://bscscan.com/address/"],
+    ["https://solscan.io/account/", "https://explorer.solana.com/address/"],
+    ["https://suiscan.xyz/mainnet/account/", "https://suivision.xyz/account/"],
     ["https://explorer.aptoslabs.com/account/"],
 ]
 for theme in themes:
