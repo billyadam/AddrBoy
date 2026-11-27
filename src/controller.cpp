@@ -200,6 +200,16 @@ void Controller::handle(Button b)
             moving = false;
         return;
     }
+    if (screen == Screen::qr_choices)
+    {
+        if (b == Button::up || b == Button::down)
+            qr_choice = (qr_choice + delta + qr_choice_count(Network(network))) % qr_choice_count(Network(network));
+        if (b == Button::a)
+            screen = Screen::receive;
+        if (b == Button::b)
+            screen = Screen::networks;
+        return;
+    }
     if (screen == Screen::wallets || screen == Screen::networks || screen == Screen::receive)
     {
         if (b == Button::start)
@@ -228,7 +238,7 @@ void Controller::handle(Button b)
         if (b == Button::b)
         {
             if (screen == Screen::receive)
-                screen = Screen::networks;
+                screen = Screen::qr_choices;
             else
                 home();
             return;
@@ -241,7 +251,7 @@ void Controller::handle(Button b)
         bool horizontal = b == Button::left || b == Button::right;
         if (screen == Screen::wallets && vertical)
             selected = (selected + delta + visible_count()) % visible_count();
-        else if ((screen == Screen::networks && vertical) || (screen == Screen::receive && horizontal))
+        else if ((screen == Screen::networks && vertical) || (screen == Screen::receive && horizontal && !qr_choice))
             next_network(delta);
         if (b == Button::a)
         {
@@ -257,7 +267,10 @@ void Controller::handle(Button b)
                 screen = Screen::networks;
             }
             else if (screen == Screen::networks)
-                screen = Screen::receive;
+            {
+                qr_choice = 0;
+                screen = Screen::qr_choices;
+            }
         }
         return;
     }

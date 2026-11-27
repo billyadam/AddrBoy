@@ -1046,7 +1046,7 @@ void home(const Controller& app, bool right_active)
     }
     if (right_active)
     {
-        const ui::hint hints[] = { { "A", "show QR" }, { "B", "wallets" }, { "STA", "menu" } };
+        const ui::hint hints[] = { { "A", "QR options" }, { "B", "wallets" }, { "STA", "menu" } };
         footer(hints, 3, app.message);
     }
     else
@@ -1061,13 +1061,34 @@ void home(const Controller& app, bool right_active)
             footer(hints, 3, app.message);
     }
 }
-uint8_t qr[qrcodegen_BUFFER_LEN_FOR_VERSION(4)];
-char qr_address[address_capacity] = { };
+void qr_choices(const Controller& app)
+{
+    header("Choose QR");
+    header_counter(tickers[app.network]);
+    panel(4, 25, 232, 116);
+    const auto& wallet = app.book.wallets[app.wallet_index()];
+    text(wallet.name, 12, 32, role.text, 216);
+    rule(10, 44, 220);
+    Row previous = Row::selected;
+    for (int i = 0; i < qr_choice_count(Network(app.network)); ++i)
+    {
+        int y = 48 + i * 18;
+        Row state = i == app.qr_choice ? Row::selected : Row::normal;
+        separator(10, y - 1, 220, previous, state);
+        RowStyle style = row(10, y, 220, 17, state, i);
+        text(qr_choice_label(Network(app.network), i), style.x, y + 4, style.text, 230 - style.x);
+        previous = state;
+    }
+    const ui::hint hints[] = { { ui::dpad_up_down, "choose" }, { "A", "show QR" }, { "B", "back" } };
+    footer(hints, 3);
+}
+uint8_t qr[qrcodegen_BUFFER_LEN_FOR_VERSION(5)];
+char qr_cached_payload[qr_payload_capacity] = { };
 bool qr_valid = false;
 void receive(const Controller& app)
 {
     header("AddrBoy");
-    header_counter("RECEIVE");
+    header_counter(app.qr_choice ? "EXPLORER" : "RECEIVE");
     // Left: 4,25 112x116. Right (QR): 120,25 116x116, so its full theme frame (2 px in Field Guide
     // and Pocket LCD) surrounds a 112x112 white area at 122,27.
     panel(4, 25, 112, 116);
@@ -1080,9 +1101,11 @@ void receive(const Controller& app)
     ui::text(font::body, tickers[app.network], tx + 1, 49, role.text);
     // What the address is, after the ticker (all fit the 62 px left there); BTC names its format.
     constexpr const char* kinds[] = { "", "ETH + L2s", "Solana", "Sui", "Aptos" };
-    text(app.network == 0 ? bitcoin_kind(address) : kinds[app.network], 49, 49, role.dim, 62);
+    text(app.qr_choice ? qr_choice_label(Network(app.network), app.qr_choice)
+                       : app.network == 0 ? bitcoin_kind(address) : kinds[app.network],
+        49, 49, role.dim, 62);
     rule(10, 60, 102);
-    tag("ADDRESS", 10, 65); // box 63-73: 2 px from the rule and from the address
+    tag(app.qr_choice ? "ACCOUNT" : "ADDRESS", 10, 65); // box 63-73: 2 px from the rule and from the address
     int len = int(std::strlen(address));
     for (int start = 0, line_index = 0; start < len; start += 12, ++line_index)
     {
@@ -1127,16 +1150,24 @@ void receive(const Controller& app)
             ui::round_fill(dots_x + pos * 6, 131, 4, 4, 2, n == app.network ? current : other);
             ++pos;
         }
-    if (std::strcmp(qr_address, address))
+    char payload[qr_payload_capacity] = { };
+    bool payload_ready = qr_payload(Network(app.network), app.qr_choice, address, payload);
+    if (!payload_ready || std::strcmp(qr_cached_payload, payload))
     {
-        std::strcpy(qr_address, address);
-        uint8_t data[qrcodegen_BUFFER_LEN_FOR_VERSION(4)] = { };
-        std::memcpy(data, address, len);
-        qr_valid = qrcodegen_encodeBinary(data, len, qr, qrcodegen_Ecc_LOW, 3, 4, qrcodegen_Mask_AUTO, false);
+        qr_valid = false;
+        qr_cached_payload[0] = 0;
+        if (payload_ready)
+        {
+            std::strcpy(qr_cached_payload, payload);
+            int payload_length = int(std::strlen(payload));
+            uint8_t data[qrcodegen_BUFFER_LEN_FOR_VERSION(5)] = { };
+            std::memcpy(data, payload, payload_length);
+            qr_valid = qrcodegen_encodeBinary(
+                data, payload_length, qr, qrcodegen_Ecc_LOW, 3, 5, qrcodegen_Mask_AUTO, false);
+        }
     }
     // The theme's panel frame; inside it always pure black on white, 112x112: version 3 with the
-    // four-module quiet zone fits at 3 px (111 px), and version 4 uses 2 px modules so its full quiet
-    // zone also fits.
+    // four-module quiet zone fits at 3 px (111 px); versions 4 and 5 use 2 px modules.
     constexpr int qr_x = 122, qr_y = 27, qr_size = 112;
     ui::fill(qr_x, qr_y, qr_size, qr_size, ui::qr_white);
     if (qr_valid)
@@ -1149,8 +1180,16 @@ void receive(const Controller& app)
     }
     else
         text("QR unavailable", qr_x + 7, 80, ui::qr_dark, qr_size - 12);
-    const ui::hint hints[] = { { ui::dpad_left_right, "network" }, { "B", "back" }, { "STA", "menu" } };
-    footer(hints, 3, app.message);
+    if (app.qr_choice)
+    {
+        const ui::hint hints[] = { { "B", "QR options" }, { "STA", "menu" } };
+        footer(hints, 2, app.message);
+    }
+    else
+    {
+        const ui::hint hints[] = { { ui::dpad_left_right, "network" }, { "B", "QR options" }, { "STA", "menu" } };
+        footer(hints, 3, app.message);
+    }
 }
 void menu(const Controller& app)
 {
@@ -1793,6 +1832,9 @@ void draw(const Controller& app)
         break;
     case Screen::networks:
         home(app, true);
+        break;
+    case Screen::qr_choices:
+        qr_choices(app);
         break;
     case Screen::receive:
         receive(app);

@@ -55,18 +55,39 @@ expected = [
     "0x" + "a" * 64,
     "0x" + "b" * 64,
 ]
+explorers = [
+    ["https://blockstream.info/address/"],
+    ["https://etherscan.io/address/", "https://basescan.org/address/",
+     "https://arbiscan.io/address/", "https://robinhoodchain.blockscout.com/address/"],
+    ["https://solscan.io/account/"],
+    ["https://suiscan.xyz/mainnet/account/"],
+    ["https://explorer.aptoslabs.com/account/"],
+]
 for theme in themes:
     shot(f"{theme}-home")
     key("A")
     shot(f"{theme}-networks")
     key("A")
+    shot(f"{theme}-qr-choices")
+    key("A")  # Address choice
     for network in range(5):
         shot(f"{theme}-qr-{network}")
         key("RIGHT")  # Left/Right switch networks on the receive screen
     key("START")
     shot(f"{theme}-menu")
     key("B")  # Close the menu
+    key("B")  # Back to QR choices
     key("B")  # Back to the networks panel
+    for network, links in enumerate(explorers):
+        if network:
+            key("DOWN")
+        key("A")  # QR choices for selected network
+        for choice, _ in enumerate(links):
+            key("DOWN")
+            key("A")
+            shot(f"{theme}-explorer-{network}-{choice}")
+            key("B")
+        key("B")  # Back to networks
     key("SELECT")  # Settings
     shot(f"{theme}-settings")
     key("SELECT")  # About, page 1 (with the project link's QR Code)
@@ -98,6 +119,7 @@ key("START")
 shot("saved-wallet")
 key("A")
 key("A")
+key("A")
 shot("saved-qr")
 commands.append(f"save {ROOT / 'tests/build/edited.sav'}")
 
@@ -111,6 +133,13 @@ for theme in themes:
         assert len(decoded) == 1 and decoded[0].text == address, (theme, network, decoded)
         colors = {color for _, color in image.crop((122, 27, 234, 139)).getcolors()}
         assert colors == {(0, 0, 0), (255, 255, 255)}, (theme, network, colors)
+    for network, links in enumerate(explorers):
+        for choice, prefix in enumerate(links):
+            image = Image.open(OUT / f"{theme}-explorer-{network}-{choice}.ppm")
+            decoded = zxingcpp.read_barcodes(image)
+            assert len(decoded) == 1 and decoded[0].text == prefix + expected[network], (theme, network, choice, decoded)
+            colors = {color for _, color in image.crop((122, 27, 234, 139)).getcolors()}
+            assert colors == {(0, 0, 0), (255, 255, 255)}, (theme, network, choice, colors)
 for theme in themes:
     decoded = zxingcpp.read_barcodes(Image.open(OUT / f"{theme}-about.ppm"))
     assert len(decoded) == 1 and decoded[0].text == "https://github.com/billyadam/AddrBoy", (theme, decoded)
@@ -118,7 +147,7 @@ decoded = zxingcpp.read_barcodes(Image.open(OUT / "saved-qr.ppm"))
 assert len(decoded) == 1 and decoded[0].text == expected[1], decoded
 
 # Reboot from the save written by the ARM code, select the last wallet, and decode it.
-commands = ["wait 300", "key 1", "key 64", "key 1", "key 1", f"shot {OUT / 'reloaded-qr.ppm'}"]
+commands = ["wait 300", "key 1", "key 64", "key 1", "key 1", "key 1", f"shot {OUT / 'reloaded-qr.ppm'}"]
 with (OUT / "reboot.log").open("w") as log:
     subprocess.run([RUNNER, ROOT / "AddrBoy.gba", ROOT / "tests/build/edited.sav"], input="\n".join(commands), text=True, stdout=log, stderr=log, check=True, timeout=30)
 decoded = zxingcpp.read_barcodes(Image.open(OUT / "reloaded-qr.ppm"))

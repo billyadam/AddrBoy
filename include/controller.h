@@ -1,6 +1,7 @@
 #ifndef ADDRBOY_CONTROLLER_H
 #define ADDRBOY_CONTROLLER_H
 #include "storage.h"
+#include "explorers.h"
 namespace addr
 {
 enum class Screen
@@ -8,6 +9,7 @@ enum class Screen
     welcome, // boot title screen (AuthBoy's welcome): A or START continues
     wallets,
     networks,
+    qr_choices,
     receive,
     menu,
     name,
@@ -50,6 +52,7 @@ public:
     Wallet draft;
     Screen screen = Screen::wallets, return_screen = Screen::wallets, discard_return = Screen::name;
     int selected = 0, network = 0, menu = 0, setup_network = 0, key = 0;
+    int qr_choice = 0;
     int edit_index = -1;
     bool lowercase = false, networks_only = false;
     bool moving = false;    // custom order: Up/Down move the selected wallet

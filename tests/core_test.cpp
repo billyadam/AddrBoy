@@ -1,6 +1,7 @@
 #include "bn_sram.h"
 #include "controller.h"
 #include "validation.h"
+#include "qrcodegen.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -114,6 +115,42 @@ Wallet wallet(const char* name = "Main wallet")
         std::memset(w.addresses[n] + 2, 'a' + n - 3, 64);
     }
     return w;
+}
+void explorer_links()
+{
+    Wallet w = wallet();
+    const char* expected[][5] = {
+        { "", "https://blockstream.info/address/" },
+        { "", "https://etherscan.io/address/", "https://basescan.org/address/",
+            "https://arbiscan.io/address/", "https://robinhoodchain.blockscout.com/address/" },
+        { "", "https://solscan.io/account/" },
+        { "", "https://suiscan.xyz/mainnet/account/" },
+        { "", "https://explorer.aptoslabs.com/account/" },
+    };
+    for (int n = 0; n < network_count; ++n)
+    {
+        int count = qr_choice_count(Network(n));
+        assert(count == (n == 1 ? 5 : 2));
+        assert(!qr_choice_label(Network(n), count));
+        for (int choice = 0; choice < count; ++choice)
+        {
+            char result[qr_payload_capacity] = { };
+            assert(qr_choice_label(Network(n), choice));
+            assert(qr_payload(Network(n), choice, w.addresses[n], result));
+            assert(std::string(result) == std::string(expected[n][choice]) + w.addresses[n]);
+            assert(std::strlen(result) <= 105); // fits a version 5, ECC L byte-mode QR
+            uint8_t data[qrcodegen_BUFFER_LEN_FOR_VERSION(5)] = { };
+            uint8_t qr[qrcodegen_BUFFER_LEN_FOR_VERSION(5)] = { };
+            size_t length = std::strlen(result);
+            std::memcpy(data, result, length);
+            assert(qrcodegen_encodeBinary(data, length, qr, qrcodegen_Ecc_LOW, 3, 5,
+                qrcodegen_Mask_AUTO, false));
+            assert((qrcodegen_getSize(qr) + 8) * 2 <= 112);
+        }
+    }
+    char result[qr_payload_capacity];
+    assert(!qr_payload(Network::evm, 5, w.addresses[1], result));
+    assert(!qr_payload(Network::evm, 1, "", result));
 }
 void saves()
 {
@@ -261,6 +298,27 @@ void controls()
     app.press(Button::a);
     assert(app.screen == Screen::networks && app.network == 0);
     app.press(Button::a);
+    assert(app.screen == Screen::qr_choices && app.qr_choice == 0);
+    app.press(Button::b);
+    assert(app.screen == Screen::networks);
+    app.press(Button::down);
+    assert(app.network == 1);
+    app.press(Button::a);
+    assert(app.screen == Screen::qr_choices && qr_choice_count(Network(app.network)) == 5);
+    for (int i = 0; i < 4; ++i)
+        app.press(Button::down);
+    assert(app.qr_choice == 4);
+    app.press(Button::a);
+    assert(app.screen == Screen::receive);
+    app.press(Button::right);
+    assert(app.network == 1); // Explorer QR stays on its chosen chain.
+    app.press(Button::b);
+    assert(app.screen == Screen::qr_choices && app.qr_choice == 4);
+    app.press(Button::b);
+    app.press(Button::up);
+    assert(app.screen == Screen::networks && app.network == 0);
+    app.press(Button::a);
+    app.press(Button::a);
     assert(app.screen == Screen::receive);
     // The receive screen switches networks with Left/Right (wrapping); Up/Down do nothing there.
     app.press(Button::up);
@@ -276,6 +334,8 @@ void controls()
     app.press(Button::select);
     assert(app.screen == Screen::receive);
     app.press(Button::b);
+    assert(app.screen == Screen::qr_choices);
+    app.press(Button::b);
     app.press(Button::select);
     assert(app.screen == Screen::settings);
     app.press(Button::b);
@@ -287,7 +347,9 @@ void controls()
     assert(app.screen == Screen::wallets);
     app.press(Button::a);
     app.press(Button::a);
+    app.press(Button::a);
     assert(app.screen == Screen::receive);
+    app.press(Button::b);
     app.press(Button::b);
     app.press(Button::r);
     assert(app.screen == Screen::wallets && app.book.filter == 1);
@@ -449,6 +511,7 @@ void external_type()
 int main(int argc, char** argv)
 {
     validators();
+    explorer_links();
     saves();
     controls();
     sorting();

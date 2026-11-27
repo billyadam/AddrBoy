@@ -13,6 +13,8 @@ another device to scan. Version **0.1.0**.
 - Five optional address slots per wallet: BTC, EVM, SOL, SUI, and APT.
 - Create, edit, and delete wallets; add, replace, or remove individual addresses.
 - Receive screen with the complete case-sensitive address in groups of four.
+- QR links to a mainnet explorer for each network: Blockstream, Solscan, Suiscan, Aptos Explorer,
+  and Etherscan, Basescan, Arbiscan, or Robinhood Chain for EVM.
 - An About section (SELECT in Settings), as in AuthBoy, with the project link as a QR Code.
 - A welcome screen on boot, as in AuthBoy, with the "Book Boy" logo (a handheld drawn as an
   address book) in the theme's colors.
@@ -44,8 +46,10 @@ embedded in the ROM.
 | --- | --- |
 | Welcome | A or START continue |
 | Wallets | Up/Down select; A focus networks; L/R cycle filter; START menu; SELECT settings |
-| Networks | Up/Down select; A show QR; B wallets; L/R filter and return to wallets; START menu; SELECT settings |
-| Receive | Left/Right cycle configured networks, wrapping; B networks; START menu |
+| Networks | Up/Down select; A choose QR; B wallets; L/R filter and return to wallets; START menu; SELECT settings |
+| QR choices | Up/Down choose Address or a network explorer; A show QR; B networks |
+| Address QR | Left/Right cycle configured networks, wrapping; B QR choices; START menu |
+| Explorer QR | B QR choices; START menu |
 | Menu | New wallet / Edit wallet / Networks / Move (custom order only) / Delete: Up/Down select; A choose; B or START close |
 | Moving a wallet | Up/Down move it (stops at the ends; saved each step); A or B done |
 | Name | D-pad select key; A type; B delete; R space; L discard; SELECT toggle case; START next |
@@ -82,15 +86,18 @@ from network setup. Wallets with zero addresses are allowed.
 
 The counter reflects validation while typing. START shows an explanatory error
 for invalid input and keeps the editor open. QR data is the exact saved address,
-with no URI scheme or formatting spaces, in byte mode at ECC L. The QR matrix is
-cached; rendering only happens after an input changes the screen.
+with no URI scheme or formatting spaces, in byte mode at ECC L. Explorer choices instead
+encode an HTTPS address page URL for the selected network. Explorer QR codes are for
+opening a browser, not for receiving funds. The QR matrix is cached; rendering only
+happens after an input changes the screen.
 
 The QR panel is 116×116 (the handoff's is 114×114), so the theme's full panel frame
 surrounds a 112×112 white area: version 3 fits at 3 pixels per module with a full
 four-module quiet zone (111 pixels); version 4 uses 2 pixels per module. The handoff's
 114×114 panel leaves only 110 pixels inside a 2-pixel frame, too small for version 3 at
 3 pixels per module with its quiet zone.
-The QR is pure black on white in all themes.
+Explorer URLs use up to version 5, at 2 pixels per module. The QR is pure black on white
+in all themes.
 
 Validation references: [EIP-55](https://eips.ethereum.org/EIPS/eip-55),
 [BIP-173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki),
@@ -161,8 +168,8 @@ With Pillow and zxing-cpp installed in a Python environment:
 python tests/verify_rom.py /tmp/addrboy-emulator
 ```
 
-This runs the actual ROM, checks exact QR payloads for all five networks across
-all four themes, verifies pure black/white QR pixels, and enters an EVM address
+This runs the actual ROM, checks exact address and explorer QR payloads for all five networks
+across all four themes, verifies pure black/white QR pixels, and enters an EVM address
 through GBA buttons before saving and rebooting. Screenshots and synthetic saves
 are written under `tests/build/`. Real hardware phone scanning remains to be
 checked on the target screen and lighting conditions.
@@ -170,9 +177,10 @@ checked on the target screen and lighting conditions.
 ## Project layout and credits
 
 - `src/controller.cpp`: navigation and draft editing.
-- `src/screens.cpp`: the eight handoff screens, settings, and confirmations.
+- `src/screens.cpp`: screen rendering, QR choices, settings, and confirmations.
 - `src/storage.cpp`: SRAM transactions and recovery.
 - `src/validation.cpp`: portable address validators.
+- `src/explorers.cpp`: network-specific explorer URL choices and QR payloads.
 - `tools/make_save.cpp`: save file generator from a JSON wallet list.
 - `include/addr6.h`: case-sensitive 5×7 address font with a 6-pixel advance.
 - `src/ui.cpp`, `src/ui_raster.bn_iwram.cpp`: locally adapted AuthBoy renderer.
